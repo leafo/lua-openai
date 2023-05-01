@@ -1,3 +1,4 @@
+local VERSION = "1.0.0"
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local types
@@ -256,5 +257,10 @@ do
   })
   _base_0.__class = _class_0
   OpenAI = _class_0
-  return _class_0
 end
+return {
+  OpenAI = OpenAI,
+  ChatSession = ChatSession,
+  VERSION = VERSION,
+  new = OpenAI
+}

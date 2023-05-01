@@ -19,10 +19,10 @@ local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
 local status, response = client:chat({
-  {role = "system", content = "You are a Lua programmer"}
+  {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-3.5-turbo" -- this is the default model
+  model = "gpt-3.5-turbo", -- this is the default model
   temperature = 0.5
 })
 
@@ -69,8 +69,8 @@ time, allowing you to display content in real time as it is generated.
 local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
-openai:chat({
-  {role = "system", content = "You work for Streak.Club, a website to track daily creative habits"}
+client:chat({
+  {role = "system", content = "You work for Streak.Club, a website to track daily creative habits"},
   {role = "user", content = "Who do you work for?"}
 }, {
   stream = true

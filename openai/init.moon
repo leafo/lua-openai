@@ -1,3 +1,4 @@
+VERSION = "1.0.0"
 
 ltn12 = require "ltn12"
 cjson = require "cjson"
@@ -238,3 +239,5 @@ class OpenAI
     @_http
 
 
+
+{:OpenAI, :ChatSession, :VERSION, new: OpenAI}
