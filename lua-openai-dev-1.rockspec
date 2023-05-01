@@ -15,7 +15,7 @@ that supports the LuaSocket request interface. Compatible with OpenResty using
 dependencies = {
   "lua >= 5.1",
   "lpeg",
-  "cjson",
+  "lua-cjson",
   "tableshape",
   "luasocket",
   "luasec",
