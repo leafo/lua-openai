@@ -1,7 +1,7 @@
 # lua-openai
 
 Bindings to the OpenAI HTTP API for Lua. Compatible with any socket library
-that supports the LuaSocket request interface. :ompatible with OpenResty using
+that supports the LuaSocket request interface. Compatible with OpenResty using
 [`lapis.nginx.http`](https://leafo.net/lapis/reference/utilities.html#making-http-requests).
 
 ## Install
@@ -19,16 +19,16 @@ local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
 local status, response = client:chat({
-	{role = "system", content = "You are a Lua programmer"}
-	{role = "user", content = "Write a 'Hello world' program in Lua"}
+  {role = "system", content = "You are a Lua programmer"}
+  {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-	model = "gpt-3.5-turbo" -- this is the default model
-	temperature = 0.5
+  model = "gpt-3.5-turbo" -- this is the default model
+  temperature = 0.5
 })
 
 if status == 200 then
-	-- the JSON response is automatically parsed into a Lua object
-	print(response.choices[1].message.content)
+  -- the JSON response is automatically parsed into a Lua object
+  print(response.choices[1].message.content)
 end
 ```
 
@@ -44,10 +44,10 @@ local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
 local chat = client:new_chat_session({
-	 -- provide an initial set of messages
-	messages = {
-		{role = "system", content = "You are an artist who likes colors"}
-	}
+  -- provide an initial set of messages
+  messages = {
+    {role = "system", content = "You are an artist who likes colors"}
+  }
 })
 
 
