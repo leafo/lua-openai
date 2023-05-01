@@ -1,4 +1,5 @@
 local ltn12 = require("ltn12")
+local cjson = require("cjson")
 local types
 types = require("tableshape").types
 local parse_url = require("socket.url").parse
@@ -41,7 +42,6 @@ do
     C, S, P = _obj_0.C, _obj_0.S, _obj_0.P
   end
   local consume_json = P(function(str, pos)
-    local cjson = require("cjson")
     local str_len = #str
     for k = pos + 1, str_len do
       local candidate = str:sub(pos, k)
@@ -61,15 +61,6 @@ local ChatSession
 do
   local _class_0
   local _base_0 = {
-    summarize = function(self)
-      types = require("lapis.validate.types")
-      local t = types.truncated_text(120)
-      local _list_0 = self.messages
-      for _index_0 = 1, #_list_0 do
-        local message = _list_0[_index_0]
-        print(message.role, t:transform(message.content))
-      end
-    end,
     append_message = function(self, m, ...)
       assert(test_message(m))
       table.insert(self.messages, m)
@@ -170,10 +161,8 @@ do
                 break
               end
               accumulation_buffer = rest
-              local from_json
-              from_json = require("lapis.util").from_json
               do
-                chunk = parse_completion_chunk(from_json(json_blob))
+                chunk = parse_completion_chunk(cjson.decode(json_blob))
                 if chunk then
                   completion_callback(chunk)
                 end
@@ -204,12 +193,7 @@ do
       assert(method, "missing method")
       assert(self.api_key, "missing api_key")
       local url = self.api_base .. path
-      local from_json, to_json
-      do
-        local _obj_0 = require("lapis.util")
-        from_json, to_json = _obj_0.from_json, _obj_0.to_json
-      end
-      local body = to_json(payload)
+      local body = cjson.encode(payload)
       local headers = {
         ["Host"] = parse_url(self.api_base).host,
         ["Accept"] = "application/json",
@@ -237,7 +221,7 @@ do
       })
       local response = table.concat(out)
       pcall(function()
-        response = from_json(response)
+        response = cjson.decode(response)
       end)
       return status, response, out_headers
     end,

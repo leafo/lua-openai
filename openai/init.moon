@@ -1,5 +1,6 @@
 
 ltn12 = require "ltn12"
+cjson = require "cjson"
 
 import types from require "tableshape"
 
@@ -61,8 +62,6 @@ consume_json_head = do
   -- this pattern reads from the front just enough characters to consume a
   -- valid json object
   consume_json = P (str, pos) ->
-    cjson = require "cjson"
-
     str_len = #str
     for k=pos+1,str_len
       candidate = str\sub pos, k
@@ -84,13 +83,6 @@ class ChatSession
     @messages = {}
     if type(@opts.messages) == "table"
       @append_message unpack @opts.messages
-
-  summarize: =>
-    types = require "lapis.validate.types"
-    t = types.truncated_text 120
-
-    for message in *@messages
-      print message.role, t\transform message.content
 
   append_message: (m, ...) =>
     assert test_message m
@@ -168,8 +160,7 @@ class OpenAI
               break
 
             accumulation_buffer = rest
-            import from_json from require "lapis.util"
-            if chunk = parse_completion_chunk from_json json_blob
+            if chunk = parse_completion_chunk cjson.decode json_blob
               completion_callback chunk
 
         ...
@@ -201,9 +192,7 @@ class OpenAI
 
     url = @api_base .. path
 
-    import from_json, to_json from require "lapis.util"
-
-    body = to_json payload
+    body = cjson.encode payload
 
     headers = {
       "Host": parse_url(@api_base).host
@@ -234,7 +223,7 @@ class OpenAI
     }
 
     response = table.concat out
-    pcall -> response = from_json response
+    pcall -> response = cjson.decode response
     status, response, out_headers
 
   get_http: =>
