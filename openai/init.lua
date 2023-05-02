@@ -220,6 +220,19 @@ do
       end
       return self:_request("POST", "/completions", payload)
     end,
+    embedding = function(self, input, opts)
+      assert(input, "input must be provided")
+      local payload = {
+        model = "text-embedding-ada-002",
+        input = input
+      }
+      if opts then
+        for k, v in pairs(opts) do
+          payload[k] = v
+        end
+      end
+      return self:_request("POST", "/embeddings", payload)
+    end,
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")

@@ -234,6 +234,24 @@ class OpenAI
 
     @_request "POST", "/completions", payload
 
+
+  -- Call /embeddings to generate an embedding for the given text
+  -- input: A string or array table of strings to generate embeddings for
+  -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/embeddings
+  embedding: (input, opts) =>
+    assert input, "input must be provided"
+
+    payload = {
+      model: "text-embedding-ada-002"
+      :input
+    }
+
+    if opts
+      for k,v in pairs opts
+        payload[k] = v
+
+    @_request "POST", "/embeddings", payload
+
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
     assert method, "missing method"
