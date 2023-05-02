@@ -95,9 +95,9 @@ class ChatSession
   last_message: =>
     @messages[#@messages]
 
-  -- append a message to the history, then trigger a completion
+  -- append a message to the history, then trigger a completion with generate_response
   -- message: message object to append to history
-  -- stream_callback: provide a function to enable streaming output. function will receive each chunk
+  -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
   send: (message, stream_callback) =>
     if type(message) == "string"
       message = {role: "user", content: message}
@@ -105,6 +105,10 @@ class ChatSession
     @append_message message
     @generate_response true, stream_callback
 
+  -- call openai API to generate the next response for the stored chat history
+  -- returns a string of the response
+  -- append_response: should the response be appended to the chat history
+  -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
   generate_response: (append_response=true, stream_callback) =>
     status, response = @client\chat @messages, {
       temperature: @opts.temperature
@@ -158,6 +162,8 @@ class OpenAI
   new_chat_session: (...) =>
     ChatSession @, ...
 
+  -- creates a ltn12 compatible filter function that will call chunk_callback
+  -- for each parsed json chunk from the server-sent events api response
   create_stream_filter: (chunk_callback) =>
     assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
 
@@ -181,7 +187,9 @@ class OpenAI
       ...
 
 
-  -- completion_callback: function called with streaming chat chunks
+  -- call /chat/completions
+  -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/chat, eg. model, temperature, etc.
+  -- completion_callback: function to be called for parsed streaming output when stream = true is passed to opts
   chat: (messages, opts, chunk_callback) =>
     test_messages = types.array_of test_message
     assert test_messages messages
@@ -201,6 +209,8 @@ class OpenAI
 
     @_request "POST", "/chat/completions", payload, nil, stream_filter
 
+  -- call /completions
+  -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/completions
   completion: (prompt, opts) =>
     payload = {
       model: "text-davinci-003"
@@ -260,6 +270,7 @@ class OpenAI
     pcall -> response = cjson.decode response
     status, response, out_headers
 
+  -- get the http client that will issue the request
   get_http: =>
     unless @config.http_provider
       @config.http_provider = if _G.ngx
