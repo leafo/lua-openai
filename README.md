@@ -48,7 +48,7 @@ end
 A chat session instance can be created to simplify managing the state of a back
 and forth conversation with the ChatGPT API. Note that chat state is stored
 locally in memory, each new message is appended to the list of messages, and
-the output is automatically appended to the list for the next request. 
+the output is automatically appended to the list for the next request.
 
 ```lua
 local openai = require("openai")
@@ -157,6 +157,16 @@ Sends a request to the `/completions` endpoint.
 
 - `prompt`: The prompt for the completion.
 - `opts`: Additional options for the completion, passed directly to the API (eg. model, temperature, etc.) https://platform.openai.com/docs/api-reference/completions
+
+Returns HTTP status, response object, and output headers. The response object
+will be decoded from JSON if possible, otherwise the raw string is returned.
+
+##### `client:embedding(input, opts)`
+
+Sends a request to the `/embeddings` endpoint.
+
+- `input`: A single string or an array of strings
+- `opts`: Additional options for the completion, passed directly to the API (eg. model) https://platform.openai.com/docs/api-reference/embeddings
 
 Returns HTTP status, response object, and output headers. The response object
 will be decoded from JSON if possible, otherwise the raw string is returned.
