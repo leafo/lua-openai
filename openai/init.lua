@@ -1,6 +1,7 @@
 local VERSION = "1.0.0"
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
+local unpack = table.unpack or unpack
 local types
 types = require("tableshape").types
 local parse_url = require("socket.url").parse

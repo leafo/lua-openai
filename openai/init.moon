@@ -3,6 +3,8 @@ VERSION = "1.0.0"
 ltn12 = require "ltn12"
 cjson = require "cjson"
 
+unpack = table.unpack or unpack
+
 import types from require "tableshape"
 
 parse_url = require("socket.url").parse
