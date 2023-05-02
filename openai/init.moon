@@ -98,7 +98,7 @@ class ChatSession
   -- append a message to the history, then trigger a completion with generate_response
   -- message: message object to append to history
   -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
-  send: (message, stream_callback) =>
+  send: (message, stream_callback=nil) =>
     if type(message) == "string"
       message = {role: "user", content: message}
 
@@ -109,7 +109,7 @@ class ChatSession
   -- returns a string of the response
   -- append_response: should the response be appended to the chat history
   -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
-  generate_response: (append_response=true, stream_callback) =>
+  generate_response: (append_response=true, stream_callback=nil) =>
     status, response = @client\chat @messages, {
       temperature: @opts.temperature
       stream: stream_callback and true or nil
@@ -152,6 +152,9 @@ class ChatSession
 class OpenAI
   api_base: "https://api.openai.com/v1"
 
+  -- config: types.shape {
+  --   http_provider: types.string\describe("HTTP module name used for requests") + types nil
+  -- }
   new: (@api_key, config) =>
     @config = {}
 
@@ -190,7 +193,7 @@ class OpenAI
   -- call /chat/completions
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/chat, eg. model, temperature, etc.
   -- completion_callback: function to be called for parsed streaming output when stream = true is passed to opts
-  chat: (messages, opts, chunk_callback) =>
+  chat: (messages, opts, chunk_callback=nil) =>
     test_messages = types.array_of test_message
     assert test_messages messages
 

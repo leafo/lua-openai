@@ -73,6 +73,9 @@ do
       return self.messages[#self.messages]
     end,
     send = function(self, message, stream_callback)
+      if stream_callback == nil then
+        stream_callback = nil
+      end
       if type(message) == "string" then
         message = {
           role = "user",
@@ -85,6 +88,9 @@ do
     generate_response = function(self, append_response, stream_callback)
       if append_response == nil then
         append_response = true
+      end
+      if stream_callback == nil then
+        stream_callback = nil
       end
       local status, response = self.client:chat(self.messages, {
         temperature = self.opts.temperature,
@@ -177,6 +183,9 @@ do
       end
     end,
     chat = function(self, messages, opts, chunk_callback)
+      if chunk_callback == nil then
+        chunk_callback = nil
+      end
       local test_messages = types.array_of(test_message)
       assert(test_messages(messages))
       local payload = {
