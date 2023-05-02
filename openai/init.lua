@@ -227,23 +227,26 @@ do
       return status, response, out_headers
     end,
     get_http = function(self)
-      if not (self._http) then
-        self.http_provider = self.http_provider or (function()
-          if ngx then
-            return "lapis.nginx.http"
-          else
-            return "ssl.https"
-          end
-        end)()
-        self._http = require(self.http_provider)
+      if not (self.config.http_provider) then
+        if _G.ngx then
+          self.config.http_provider = "lapis.nginx.http"
+        else
+          self.config.http_provider = "ssl.https"
+        end
       end
-      return self._http
+      return require(self.config.http_provider)
     end
   }
   _base_0.__index = _base_0
   _class_0 = setmetatable({
-    __init = function(self, api_key)
+    __init = function(self, api_key, config)
       self.api_key = api_key
+      self.config = { }
+      if type(config) == "table" then
+        for k, v in pairs(config) do
+          self.config[k] = v
+        end
+      end
     end,
     __base = _base_0,
     __name = "OpenAI"

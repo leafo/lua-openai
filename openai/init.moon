@@ -124,7 +124,12 @@ class ChatSession
 class OpenAI
   api_base: "https://api.openai.com/v1"
 
-  new: (@api_key)  =>
+  new: (@api_key, config) =>
+    @config = {}
+
+    if type(config) == "table"
+      for k, v in pairs config
+        @config[k] = v
 
   new_chat_session: (...) =>
     ChatSession @, ...
@@ -228,16 +233,12 @@ class OpenAI
     status, response, out_headers
 
   get_http: =>
-    unless @_http
-      @http_provider or= if ngx
+    unless @config.http_provider
+      @config.http_provider = if _G.ngx
         "lapis.nginx.http"
       else
         "ssl.https"
 
-      @_http = require @http_provider
-
-    @_http
-
-
+    require @config.http_provider
 
 {:OpenAI, :ChatSession, :VERSION, new: OpenAI}
