@@ -93,6 +93,7 @@ do
         stream_callback = nil
       end
       local status, response = self.client:chat(self.messages, {
+        model = self.opts.model,
         temperature = self.opts.temperature,
         stream = stream_callback and true or nil
       }, stream_callback)

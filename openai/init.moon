@@ -111,6 +111,7 @@ class ChatSession
   -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
   generate_response: (append_response=true, stream_callback=nil) =>
     status, response = @client\chat @messages, {
+      model: @opts.model
       temperature: @opts.temperature
       stream: stream_callback and true or nil
     }, stream_callback

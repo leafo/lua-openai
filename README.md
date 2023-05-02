@@ -113,7 +113,10 @@ local client = openai.new(api_key)
 
 ##### `client:new_chat_session(...)`
 
-Creates a new ChatSession instance.
+Creates a new [ChatSession](#chatsession) instance. A chat session is an
+abstraction over the chat completions API that stores the chat history. You can
+append new messages to the history and request completions to be generated from
+it. By default, the completion is appended to the history.
 
 ##### `client:chat(messages, opts, chunk_callback)`
 
@@ -132,7 +135,25 @@ Sends a request to the `/completions` endpoint.
 
 #### ChatSession
 
-This class manages chat sessions and history with the OpenAI API. Typically created with `new_chat_session`
+This class manages chat sessions and history with the OpenAI API. Typically
+created with `new_chat_session`
+
+The field `messages` stores an array of chat messages representing the chat
+history. Each message object must conform to the following structure:
+
+- `role`: A string representing the role of the message sender. It must be one of the following values: "system", "user", or "assistant".
+- `content`: A string containing the content of the message.
+- `name`: An optional string representing the name of the message sender. If not provided, it should be `nil`.
+
+For example, a valid message object might look like this:
+
+```lua
+{
+  role = "user",
+  content = "Tell me a joke",
+  name = "John Doe"
+}
+```
 
 ##### `new(client, opts)`
 
@@ -140,6 +161,9 @@ Constructor for the ChatSession.
 
 - `client`: An instance of the OpenAI client.
 - `opts`: An optional table of options.
+  - `messages`: An initial array of chat messages
+  - `temperature`: temperature setting
+  - `model`: Which chat completion model to use, eg. `gpt-4`, `gpt-3.5-turbo`
 
 ##### `chat:append_message(m, ...)`
 
