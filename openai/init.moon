@@ -95,20 +95,44 @@ class ChatSession
   last_message: =>
     @messages[#@messages]
 
-  send: (message) =>
+  -- append a message to the history, then trigger a completion
+  -- message: message object to append to history
+  -- stream_callback: provide a function to enable streaming output. function will receive each chunk
+  send: (message, stream_callback) =>
     if type(message) == "string"
       message = {role: "user", content: message}
 
     @append_message message
-    @generate_response!
+    @generate_response true, stream_callback
 
-  generate_response: (append_response=true) =>
+  generate_response: (append_response=true, stream_callback) =>
     status, response = @client\chat @messages, {
       temperature: @opts.temperature
-    }
+      stream: stream_callback and true or nil
+    }, stream_callback
 
     if status != 200
       return nil, "Bad status: #{status}", response
+
+    -- if we are streaming we need to pase the entire fragmented response
+    if stream_callback
+      assert type(response) == "string",
+        "Expected string response from streaming output"
+
+      parts = {}
+      f = @client\create_stream_filter (c) ->
+        table.insert parts, c.content
+
+      f response
+      message = {
+        role: "assistant"
+        content: table.concat parts
+      }
+
+      if append_response
+        @append_message message
+
+      return message.content
 
     out, err = parse_chat_response response
 
@@ -134,8 +158,31 @@ class OpenAI
   new_chat_session: (...) =>
     ChatSession @, ...
 
+  create_stream_filter: (chunk_callback) =>
+    assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
+
+    accumulation_buffer = ""
+
+    (...) ->
+      chunk = ...
+
+      if type(chunk) == "string"
+        accumulation_buffer ..= chunk
+
+        while true
+          json_blob, rest = consume_json_head\match accumulation_buffer
+          unless json_blob
+            break
+
+          accumulation_buffer = rest
+          if chunk = parse_completion_chunk cjson.decode json_blob
+            chunk_callback chunk
+
+      ...
+
+
   -- completion_callback: function called with streaming chat chunks
-  chat: (messages, opts, completion_callback) =>
+  chat: (messages, opts, chunk_callback) =>
     test_messages = types.array_of test_message
     assert test_messages messages
 
@@ -150,26 +197,7 @@ class OpenAI
         payload[k] = v
 
     stream_filter = if payload.stream
-      assert types.function(completion_callback), "Must provide completion_callback function when streaming response"
-
-      accumulation_buffer = ""
-
-      (...) ->
-        chunk = ...
-
-        if type(chunk) == "string"
-          accumulation_buffer ..= chunk
-
-          while true
-            json_blob, rest = consume_json_head\match accumulation_buffer
-            unless json_blob
-              break
-
-            accumulation_buffer = rest
-            if chunk = parse_completion_chunk cjson.decode json_blob
-              completion_callback chunk
-
-        ...
+      @create_stream_filter chunk_callback
 
     @_request "POST", "/chat/completions", payload, nil, stream_filter
 

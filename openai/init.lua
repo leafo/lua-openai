@@ -72,7 +72,7 @@ do
     last_message = function(self)
       return self.messages[#self.messages]
     end,
-    send = function(self, message)
+    send = function(self, message, stream_callback)
       if type(message) == "string" then
         message = {
           role = "user",
@@ -80,17 +80,34 @@ do
         }
       end
       self:append_message(message)
-      return self:generate_response()
+      return self:generate_response(true, stream_callback)
     end,
-    generate_response = function(self, append_response)
+    generate_response = function(self, append_response, stream_callback)
       if append_response == nil then
         append_response = true
       end
       local status, response = self.client:chat(self.messages, {
-        temperature = self.opts.temperature
-      })
+        temperature = self.opts.temperature,
+        stream = stream_callback and true or nil
+      }, stream_callback)
       if status ~= 200 then
         return nil, "Bad status: " .. tostring(status), response
+      end
+      if stream_callback then
+        assert(type(response) == "string", "Expected string response from streaming output")
+        local parts = { }
+        local f = self.client:create_stream_filter(function(c)
+          return table.insert(parts, c.content)
+        end)
+        f(response)
+        local message = {
+          role = "assistant",
+          content = table.concat(parts)
+        }
+        if append_response then
+          self:append_message(message)
+        end
+        return message.content
       end
       local out, err = parse_chat_response(response)
       if not (out) then
@@ -135,7 +152,31 @@ do
     new_chat_session = function(self, ...)
       return ChatSession(self, ...)
     end,
-    chat = function(self, messages, opts, completion_callback)
+    create_stream_filter = function(self, chunk_callback)
+      assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
+      local accumulation_buffer = ""
+      return function(...)
+        local chunk = ...
+        if type(chunk) == "string" then
+          accumulation_buffer = accumulation_buffer .. chunk
+          while true do
+            local json_blob, rest = consume_json_head:match(accumulation_buffer)
+            if not (json_blob) then
+              break
+            end
+            accumulation_buffer = rest
+            do
+              chunk = parse_completion_chunk(cjson.decode(json_blob))
+              if chunk then
+                chunk_callback(chunk)
+              end
+            end
+          end
+        end
+        return ...
+      end
+    end,
+    chat = function(self, messages, opts, chunk_callback)
       local test_messages = types.array_of(test_message)
       assert(test_messages(messages))
       local payload = {
@@ -150,28 +191,7 @@ do
       end
       local stream_filter
       if payload.stream then
-        assert(types["function"](completion_callback), "Must provide completion_callback function when streaming response")
-        local accumulation_buffer = ""
-        stream_filter = function(...)
-          local chunk = ...
-          if type(chunk) == "string" then
-            accumulation_buffer = accumulation_buffer .. chunk
-            while true do
-              local json_blob, rest = consume_json_head:match(accumulation_buffer)
-              if not (json_blob) then
-                break
-              end
-              accumulation_buffer = rest
-              do
-                chunk = parse_completion_chunk(cjson.decode(json_blob))
-                if chunk then
-                  completion_callback(chunk)
-                end
-              end
-            end
-          end
-          return ...
-        end
+        stream_filter = self:create_stream_filter(chunk_callback)
       end
       return self:_request("POST", "/chat/completions", payload, nil, stream_filter)
     end,
