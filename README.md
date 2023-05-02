@@ -2,7 +2,7 @@
 
 Bindings to the [OpenAI HTTP
 API](https://platform.openai.com/docs/api-reference) for Lua. Compatible with
-any socket library that supports the LuaSocket request interface. Compatible
+any HTTP library that supports LuaSocket's http request interface. Compatible
 with OpenResty using
 [`lapis.nginx.http`](https://leafo.net/lapis/reference/utilities.html#making-http-requests).
 
