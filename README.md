@@ -113,7 +113,7 @@ The `openai` module returns a table with the following fields:
 - `OpenAI`: A client for sending requests to the OpenAI API.
 - `new`: An alias to `OpenAI` to create a new instance of the OpenAI client
 - `ChatSession`: A class for managing chat sessions and history with the OpenAI API.
-- `VERSION = "1.0.0"`: The current version of the library
+- `VERSION = "1.1.0"`: The current version of the library
 
 ### Classes
 

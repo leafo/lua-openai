@@ -1,4 +1,4 @@
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 ltn12 = require "ltn12"
 cjson = require "cjson"
