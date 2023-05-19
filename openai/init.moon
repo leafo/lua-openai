@@ -78,6 +78,12 @@ consume_json_head = do
   S("\t\n\r ")^0 * P("data: ") * C(consume_json) * C(P(1)^0)
 
 
+parse_error_message = types.partial {
+  error: types.partial {
+    message: types.string\tag "message"
+    code: types.string\tag "code"
+  }
+}
 
 -- handles appending response for each call to chat
 -- TODO: hadle appending the streaming response to the output
@@ -119,7 +125,12 @@ class ChatSession
     }, stream_callback
 
     if status != 200
-      return nil, "Bad status: #{status}", response
+      err_msg = if err = parse_error_message response
+        "Bad status: #{status}: #{err.message} (#{err.code})"
+      else
+        "Bad status: #{status}"
+
+      return nil, err_msg, response
 
     -- if we are streaming we need to pase the entire fragmented response
     if stream_callback

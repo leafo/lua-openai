@@ -59,6 +59,12 @@ do
   end)
   consume_json_head = S("\t\n\r ") ^ 0 * P("data: ") * C(consume_json) * C(P(1) ^ 0)
 end
+local parse_error_message = types.partial({
+  error = types.partial({
+    message = types.string:tag("message"),
+    code = types.string:tag("code")
+  })
+})
 local ChatSession
 do
   local _class_0
@@ -99,7 +105,16 @@ do
         stream = stream_callback and true or nil
       }, stream_callback)
       if status ~= 200 then
-        return nil, "Bad status: " .. tostring(status), response
+        local err_msg
+        do
+          local err = parse_error_message(response)
+          if err then
+            err_msg = "Bad status: " .. tostring(status) .. ": " .. tostring(err.message) .. " (" .. tostring(err.code) .. ")"
+          else
+            err_msg = "Bad status: " .. tostring(status)
+          end
+        end
+        return nil, err_msg, response
       end
       if stream_callback then
         assert(type(response) == "string", "Expected string response from streaming output")
