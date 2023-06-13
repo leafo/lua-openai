@@ -260,17 +260,23 @@ do
       end
       return self:_request("POST", "/moderations", payload)
     end,
+    models = function(self)
+      return self:_request("GET", "/models")
+    end,
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")
       assert(self.api_key, "missing api_key")
       local url = self.api_base .. path
-      local body = cjson.encode(payload)
+      local body
+      if payload then
+        body = cjson.encode(payload)
+      end
       local headers = {
         ["Host"] = parse_url(self.api_base).host,
         ["Accept"] = "application/json",
         ["Content-Type"] = "application/json",
-        ["Content-Length"] = #body,
+        ["Content-Length"] = body and #body or nil,
         ["Authorization"] = "Bearer " .. tostring(self.api_key)
       }
       if more_headers then
@@ -279,7 +285,10 @@ do
         end
       end
       local out = { }
-      local source = ltn12.source.string(body)
+      local source
+      if body then
+        source = ltn12.source.string(body)
+      end
       local sink = ltn12.sink.table(out)
       if stream_fn then
         sink = ltn12.sink.chain(stream_fn, sink)

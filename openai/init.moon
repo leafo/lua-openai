@@ -275,6 +275,9 @@ class OpenAI
 
     @_request "POST", "/moderations", payload
 
+  models: =>
+    @_request "GET", "/models"
+
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
     assert method, "missing method"
@@ -283,13 +286,14 @@ class OpenAI
 
     url = @api_base .. path
 
-    body = cjson.encode payload
+    body = if payload
+      cjson.encode payload
 
     headers = {
       "Host": parse_url(@api_base).host
       "Accept": "application/json"
       "Content-Type": "application/json"
-      "Content-Length": #body
+      "Content-Length": body and #body or nil
       "Authorization": "Bearer #{@api_key}"
     }
 
@@ -299,7 +303,9 @@ class OpenAI
 
     out = {}
 
-    source = ltn12.source.string body
+    source = if body
+      ltn12.source.string body
+
     sink = ltn12.sink.table out
 
     if stream_fn
