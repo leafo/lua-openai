@@ -1,4 +1,4 @@
-local VERSION = "1.1.0"
+local VERSION = "1.2.0"
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local unpack = table.unpack or unpack
