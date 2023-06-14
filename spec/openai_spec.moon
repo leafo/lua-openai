@@ -64,15 +64,11 @@ describe "OpenAI API Client", ->
     assert.same "This is a completion response.", response.choices[1].text
 
   describe "chat session", ->
-    local snapshot
-    before_each = ->
-      snapshot = assert\snapshot!
-
-    after_each = ->
-      snapshot\revert!
-
     it "simple exchange", ->
-      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+      client = OpenAI "test-api-key"
+      chat = client\new_chat_session { temperature: .75 }
+
+      stub(client, "chat").invokes (c, messages, params) ->
         assert.same {
           {
             role: "user"
@@ -95,8 +91,6 @@ describe "OpenAI API Client", ->
           }
         }
 
-      client = OpenAI "test-api-key"
-      chat = client\new_chat_session { temperature: .75 }
       res = assert chat\send "Who are you?"
       assert.same "I am you", res
 
@@ -112,7 +106,7 @@ describe "OpenAI API Client", ->
         }
       }, chat.messages
 
-      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+      stub(client, "chat").invokes (c, messages, params) ->
         assert.same {
           {
             role: "user"
@@ -150,13 +144,13 @@ describe "OpenAI API Client", ->
       chat = client\new_chat_session { model: "gpt-4" }
 
       -- bad status
-      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+      stub(client, "chat").invokes (c, messages, params) ->
         400, {}
 
       assert.same {nil, "Bad status: 400", {}}, {chat\send "Hello"}
 
       -- bad status with error
-      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+      stub(client, "chat").invokes (c, messages, params) ->
         400, {
           error: {
             message: "Not valid thing"
@@ -170,7 +164,7 @@ describe "OpenAI API Client", ->
       }}, {chat\send "Hello"}
 
       -- bad status with error message and code
-      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+      stub(client, "chat").invokes (c, messages, params) ->
         400, {
           error: {
             message: "Not valid thing"
@@ -186,7 +180,7 @@ describe "OpenAI API Client", ->
       }}, {chat\send "Hello"}
 
       -- malformed output
-      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+      stub(client, "chat").invokes (c, messages, params) ->
         200, { usage: {} }
 
       assert.same {
@@ -196,7 +190,9 @@ describe "OpenAI API Client", ->
       }, {chat\send "Hello"}
 
     it "with functions", ->
-      stub(OpenAI.__base, "chat").invokes (c, args, params) ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "chat").invokes (c, args, params) ->
         assert.same {
           {
             role: "system"
@@ -240,7 +236,6 @@ describe "OpenAI API Client", ->
           }
         }
 
-      client = OpenAI "test-api-key"
       chat = client\new_chat_session {
         model: "gpt-4-0613"
         messages: {
@@ -277,7 +272,7 @@ describe "OpenAI API Client", ->
       }, res
 
 
-      stub(OpenAI.__base, "chat").invokes (c, args, params) ->
+      stub(client, "chat").invokes (c, args, params) ->
         assert.same {
           {
             role: "system"
