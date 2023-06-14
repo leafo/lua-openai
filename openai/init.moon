@@ -123,12 +123,12 @@ parse_error_message = types.partial {
 class ChatSession
   new: (@client, @opts={}) =>
     @messages = {}
-    @functions = {}
 
     if type(@opts.messages) == "table"
       @append_message unpack @opts.messages
 
     if type(@opts.functions) == "table"
+      @functions = {}
       for func in *@opts.functions
         assert test_function func
         table.insert @functions, func
@@ -201,7 +201,8 @@ class ChatSession
     out, err = parse_chat_response response
 
     unless out
-      return nil, err, status, response
+      err = "Failed to parse response from server: #{err}"
+      return nil, err, response
 
     if append_response
       @append_message out.message

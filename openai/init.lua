@@ -165,7 +165,8 @@ do
       end
       local out, err = parse_chat_response(response)
       if not (out) then
-        return nil, err, status, response
+        err = "Failed to parse response from server: " .. tostring(err)
+        return nil, err, response
       end
       if append_response then
         self:append_message(out.message)
@@ -181,11 +182,11 @@ do
       end
       self.client, self.opts = client, opts
       self.messages = { }
-      self.functions = { }
       if type(self.opts.messages) == "table" then
         self:append_message(unpack(self.opts.messages))
       end
       if type(self.opts.functions) == "table" then
+        self.functions = { }
         local _list_0 = self.opts.functions
         for _index_0 = 1, #_list_0 do
           local func = _list_0[_index_0]

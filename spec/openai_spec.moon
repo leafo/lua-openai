@@ -63,7 +63,7 @@ describe "OpenAI API Client", ->
     assert.same 200, status
     assert.same "This is a completion response.", response.choices[1].text
 
-  describe "chat session #ddd", ->
+  describe "chat session", ->
     local snapshot
     before_each = ->
       snapshot = assert\snapshot!
@@ -72,8 +72,128 @@ describe "OpenAI API Client", ->
       snapshot\revert!
 
     it "simple exchange", ->
+      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+        assert.same {
+          {
+            role: "user"
+            content: "Who are you?"
+          }
+        }, messages
+        assert.same {
+          temperature: 0.75
+        }, params
 
-    it "handles error", ->
+        200, {
+          usage: {}
+          choices: {
+            {
+              message: {
+                content: "I am you"
+                role: "assistant"
+              }
+            }
+          }
+        }
+
+      client = OpenAI "test-api-key"
+      chat = client\new_chat_session { temperature: .75 }
+      res = assert chat\send "Who are you?"
+      assert.same "I am you", res
+
+      -- verify that all the messages are stored
+      assert.same {
+        {
+          role: "user"
+          content: "Who are you?"
+        }
+        {
+          role: "assistant"
+          content: "I am you"
+        }
+      }, chat.messages
+
+      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+        assert.same {
+          {
+            role: "user"
+            content: "Who are you?"
+          }
+          {
+            role: "assistant"
+            content: "I am you"
+          }
+          {
+            role: "user"
+            content: "Thank you"
+          }
+        }, messages
+        assert.same {
+          temperature: 0.75
+        }, params
+
+        200, {
+          usage: {}
+          choices: {
+            {
+              message: {
+                content: "You're welcome"
+                role: "assistant"
+              }
+            }
+          }
+        }
+
+      assert.same "You're welcome", chat\send "Thank you"
+
+    it "handles error responses", ->
+      client = OpenAI "test-api-key"
+      chat = client\new_chat_session { model: "gpt-4" }
+
+      -- bad status
+      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+        400, {}
+
+      assert.same {nil, "Bad status: 400", {}}, {chat\send "Hello"}
+
+      -- bad status with error
+      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+        400, {
+          error: {
+            message: "Not valid thing"
+          }
+        }
+
+      assert.same {nil, "Bad status: 400: Not valid thing", {
+        error: {
+          message: "Not valid thing"
+        }
+      }}, {chat\send "Hello"}
+
+      -- bad status with error message and code
+      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+        400, {
+          error: {
+            message: "Not valid thing"
+            code: "99"
+          }
+        }
+
+      assert.same {nil, "Bad status: 400: Not valid thing (99)", {
+        error: {
+          message: "Not valid thing"
+          code: "99"
+        }
+      }}, {chat\send "Hello"}
+
+      -- malformed output
+      stub(OpenAI.__base, "chat").invokes (c, messages, params) ->
+        200, { usage: {} }
+
+      assert.same {
+        nil
+        [[Failed to parse response from server: field "choices": expected type "table", got "nil"]]
+        { usage: {}}
+      }, {chat\send "Hello"}
 
     it "with functions", ->
       stub(OpenAI.__base, "chat").invokes (c, args, params) ->
