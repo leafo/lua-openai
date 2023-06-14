@@ -9,19 +9,52 @@ import types from require "tableshape"
 
 parse_url = require("socket.url").parse
 
-test_message = types.shape {
-  role: types.one_of {"system", "user", "assistant"}
-  content: types.string
-  name: types.nil + types.string
+empty = (types.nil + types.literal(cjson.null))\describe "nullable"
+
+test_message = types.one_of {
+  types.shape {
+    role: types.one_of {"system", "user", "assistant"}
+    content: empty + types.string -- this can be empty when function_call is set
+    name: empty + types.string
+    function_call: empty + types.table
+  }
+
+  -- this message type is for sending a function call response back
+  types.shape {
+    role: types.one_of {"function"}
+    name: types.string
+    content: empty + types.string
+  }
+}
+
+-- verify the shape of a function declaration
+test_function = types.shape {
+  name: types.string
+  description: types.nil + types.string
+  parameters: types.nil + types.table
 }
 
 parse_chat_response = types.partial {
   usage: types.table\tag "usage"
   choices: types.partial {
     types.partial {
-      message: types.partial({
-        content: types.string\tag "response"
-        role: "assistant"
+      message: types.one_of({
+        -- if function call is requested, content is not required so we tag
+        -- nothing so we can return the whole object
+        types.partial({
+          role: "assistant"
+          content: types.string + empty
+          function_call: types.partial {
+            name: types.string
+            -- API returns arguments a string that should be in json format
+            arguments: types.string
+          }
+        })
+
+        types.partial {
+          role: "assistant"
+          content: types.string\tag "response"
+        }
       })\tag "message"
     }
   }
@@ -81,7 +114,7 @@ consume_json_head = do
 parse_error_message = types.partial {
   error: types.partial {
     message: types.string\tag "message"
-    code: types.string\tag "code"
+    code: empty + types.string\tag "code"
   }
 }
 
@@ -90,8 +123,15 @@ parse_error_message = types.partial {
 class ChatSession
   new: (@client, @opts={}) =>
     @messages = {}
+    @functions = {}
+
     if type(@opts.messages) == "table"
       @append_message unpack @opts.messages
+
+    if type(@opts.functions) == "table"
+      for func in *@opts.functions
+        assert test_function func
+        table.insert @functions, func
 
   append_message: (m, ...) =>
     assert test_message m
@@ -119,16 +159,22 @@ class ChatSession
   -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
   generate_response: (append_response=true, stream_callback=nil) =>
     status, response = @client\chat @messages, {
+      function_call: @opts.function_call -- override the default function call behavior
+      functions: @functions
       model: @opts.model
       temperature: @opts.temperature
       stream: stream_callback and true or nil
     }, stream_callback
 
     if status != 200
-      err_msg = if err = parse_error_message response
-        "Bad status: #{status}: #{err.message} (#{err.code})"
-      else
-        "Bad status: #{status}"
+      err_msg = "Bad status: #{status}"
+
+      if err = parse_error_message response
+        if err.message
+          err_msg ..= ": #{err.message}"
+
+        if err.code
+          err_msg ..= " (#{err.code})"
 
       return nil, err_msg, response
 
@@ -160,8 +206,8 @@ class ChatSession
     if append_response
       @append_message out.message
 
-    out.response
-
+    -- response is missing for function_calls, so we return the entire message object
+    out.response or out.message
 
 class OpenAI
   api_base: "https://api.openai.com/v1"

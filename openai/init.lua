@@ -5,22 +5,48 @@ local unpack = table.unpack or unpack
 local types
 types = require("tableshape").types
 local parse_url = require("socket.url").parse
-local test_message = types.shape({
-  role = types.one_of({
-    "system",
-    "user",
-    "assistant"
+local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
+local test_message = types.one_of({
+  types.shape({
+    role = types.one_of({
+      "system",
+      "user",
+      "assistant"
+    }),
+    content = empty + types.string,
+    name = empty + types.string,
+    function_call = empty + types.table
   }),
-  content = types.string,
-  name = types["nil"] + types.string
+  types.shape({
+    role = types.one_of({
+      "function"
+    }),
+    name = types.string,
+    content = empty + types.string
+  })
+})
+local test_function = types.shape({
+  name = types.string,
+  description = types["nil"] + types.string,
+  parameters = types["nil"] + types.table
 })
 local parse_chat_response = types.partial({
   usage = types.table:tag("usage"),
   choices = types.partial({
     types.partial({
-      message = types.partial({
-        content = types.string:tag("response"),
-        role = "assistant"
+      message = types.one_of({
+        types.partial({
+          role = "assistant",
+          content = types.string + empty,
+          function_call = types.partial({
+            name = types.string,
+            arguments = types.string
+          })
+        }),
+        types.partial({
+          role = "assistant",
+          content = types.string:tag("response")
+        })
       }):tag("message")
     })
   })
@@ -62,7 +88,7 @@ end
 local parse_error_message = types.partial({
   error = types.partial({
     message = types.string:tag("message"),
-    code = types.string:tag("code")
+    code = empty + types.string:tag("code")
   })
 })
 local ChatSession
@@ -100,18 +126,23 @@ do
         stream_callback = nil
       end
       local status, response = self.client:chat(self.messages, {
+        function_call = self.opts.function_call,
+        functions = self.functions,
         model = self.opts.model,
         temperature = self.opts.temperature,
         stream = stream_callback and true or nil
       }, stream_callback)
       if status ~= 200 then
-        local err_msg
+        local err_msg = "Bad status: " .. tostring(status)
         do
           local err = parse_error_message(response)
           if err then
-            err_msg = "Bad status: " .. tostring(status) .. ": " .. tostring(err.message) .. " (" .. tostring(err.code) .. ")"
-          else
-            err_msg = "Bad status: " .. tostring(status)
+            if err.message then
+              err_msg = err_msg .. ": " .. tostring(err.message)
+            end
+            if err.code then
+              err_msg = err_msg .. " (" .. tostring(err.code) .. ")"
+            end
           end
         end
         return nil, err_msg, response
@@ -139,7 +170,7 @@ do
       if append_response then
         self:append_message(out.message)
       end
-      return out.response
+      return out.response or out.message
     end
   }
   _base_0.__index = _base_0
@@ -150,8 +181,17 @@ do
       end
       self.client, self.opts = client, opts
       self.messages = { }
+      self.functions = { }
       if type(self.opts.messages) == "table" then
-        return self:append_message(unpack(self.opts.messages))
+        self:append_message(unpack(self.opts.messages))
+      end
+      if type(self.opts.functions) == "table" then
+        local _list_0 = self.opts.functions
+        for _index_0 = 1, #_list_0 do
+          local func = _list_0[_index_0]
+          assert(test_function(func))
+          table.insert(self.functions, func)
+        end
       end
     end,
     __base = _base_0,
