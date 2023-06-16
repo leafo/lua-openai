@@ -82,6 +82,88 @@ local response = chat:send("What's the most boring color?", function(chunk)
 end)
 ```
 
+## Chat Session With Functions
+
+OpenAI allows [sending a list of function
+declarations](https://openai.com/blog/function-calling-and-other-api-updates)
+that the LLM can decide to call based on the prompt. The function calling
+interface must be used with chat completions and the `gpt-4-0613` or
+`gpt-3.5-turbo-0613` models or later.
+
+Here's a quick example of how to use functions in a chat exchange. First you
+will need to create a chat session with the `functions` option containing an
+array of available functions.
+
+> The functions are stored on the `functions` field on the chat object. If the
+> functions need to be adjusted for future message, the field can be modified.
+
+```lua
+local chat = openai:new_chat_session({
+  model = "gpt-3.5-turbo-0613",
+  functions = {
+    {
+      name = "add",
+      description =  "Add two numbers together",
+      parameters = {
+        type = "object",
+        properties = {
+          a = { type = "number" },
+          b = { type = "number" }
+        }
+      }
+    }
+  }
+})
+```
+
+Any prompt you send will be aware of all available functions, and may request
+any of them to be called. If the response contains a function call request,
+then an object will be returned instead of the standard string return value.
+
+```lua
+local res = chat:send("Using the provided function, calculate the sum of 2923 + 20839")
+
+if type(res) == "table" and res.function_call then
+  -- The function_call object has the following fields:
+  --   function_call.name --> name of function to be called
+  --   function_call.arguments --> A string in JSON format that should match the parameter specification
+  -- Note that res may also include a content field if the LLM produced a textual output as well
+
+  local cjson = require "cjson"
+  local arguments = cjson.decode(res.function_call.arguments)
+  call_my_function(res.function_call.name, arguments)
+end
+```
+
+Finally, you can evaluate the function and send the result back to the client
+so it can resume operation:
+
+> Since the LLM can hallucinate every part of the function call, you'll want to
+> do robust type validation to ensure that function name and arguments match
+> what you expect.
+
+```lua
+local name, arguments = ... -- the name and arguments extracted from above
+
+if name == "add" then
+  local value = arguments.a + arguments.b
+
+  -- send the response back to the chat bot using a `role = function` message
+
+  local cjson = require "cjson"
+
+  local res = chat:send({
+    role = "function",
+    name = name,
+    content = cjson.encode(value)
+  })
+
+  print(res) -- Print the final output
+else
+  error("Unknown function: " .. name)
+end
+```
+
 ## Streaming Response Example
 
 Under normal circumstances the API will wait until the entire response is
@@ -202,6 +284,7 @@ Constructor for the ChatSession.
 - `client`: An instance of the OpenAI client.
 - `opts`: An optional table of options.
   - `messages`: An initial array of chat messages
+  - `functions`: A list of function declarations
   - `temperature`: temperature setting
   - `model`: Which chat completion model to use, eg. `gpt-4`, `gpt-3.5-turbo`
 
@@ -221,10 +304,15 @@ Appends a message to the chat history and triggers a completion with
 `generate_response` and returns the response as a string. On failure, returns
 `nil`, an error message, and the raw request response.
 
+If the response includes a `function_call`, then the entire message object is
+returned instead of a string of the content. You can return the result of the
+function by passing `role = "function"` object to the `send` method
+
 - `message`: A message object or a string.
 - `stream_callback`: (optional) A function to enable streaming output.
 
-By providing a `stream_callback`, the request will runin streaming mode. This function receives chunks as they are parsed from the response.
+By providing a `stream_callback`, the request will runin streaming mode. This
+function receives chunks as they are parsed from the response.
 
 These chunks have the following format:
 
