@@ -90,6 +90,10 @@ that the LLM can decide to call based on the prompt. The function calling
 interface must be used with chat completions and the `gpt-4-0613` or
 `gpt-3.5-turbo-0613` models or later.
 
+> See <https://github.com/leafo/lua-openai/blob/main/examples/example5.lua> for
+> a full example that implements basic math functions to compute the standard
+> deviation of a list of numbers
+
 Here's a quick example of how to use functions in a chat exchange. First you
 will need to create a chat session with the `functions` option containing an
 array of available functions.
@@ -130,17 +134,19 @@ if type(res) == "table" and res.function_call then
   -- Note that res may also include a content field if the LLM produced a textual output as well
 
   local cjson = require "cjson"
+  local name = res.function_call.name
   local arguments = cjson.decode(res.function_call.arguments)
-  call_my_function(res.function_call.name, arguments)
+  -- ... compute the result and send it back ...
 end
 ```
 
-Finally, you can evaluate the function and send the result back to the client
-so it can resume operation:
+You can evaluate the requested function & arguments and send the result back to
+the client so it can resume operation with a `role=function` message object:
 
 > Since the LLM can hallucinate every part of the function call, you'll want to
 > do robust type validation to ensure that function name and arguments match
-> what you expect.
+> what you expect. Assume every stage can fail, including receiving malformed
+> JSON for the arguments.
 
 ```lua
 local name, arguments = ... -- the name and arguments extracted from above
