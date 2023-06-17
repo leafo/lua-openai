@@ -1,7 +1,6 @@
 
--- This example that will attempt to calcualte the standard deviation of a
--- number by calling functions tcalling functions that have been defined.
---
+-- This example that will attempt to calculate the standard deviation of a
+-- list of numbers using the functions API and a set of simple mathmatical functions
 
 local cjson = require("cjson")
 local types = require("tableshape").types
