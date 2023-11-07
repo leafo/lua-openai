@@ -30,8 +30,7 @@ local two_numbers = {
 
 local chat = client:new_chat_session({
   temperature = 0,
-  -- model = "gpt-3.5-turbo-0613", -- In my testing, gpt-3.5 is unable to figure it out
-  model = "gpt-4-0613",
+  model = "gpt-4",
   messages = {
     {
       role = "system",
