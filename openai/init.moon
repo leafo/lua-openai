@@ -330,6 +330,15 @@ class OpenAI
   models: =>
     @_request "GET", "/models"
 
+  files: =>
+    @_request "GET", "/files"
+
+  file: (file_id) =>
+    @_request "GET", "/files/#{file_id}"
+
+  delete_file: (file_id) =>
+    @_request "DELETE", "/files/#{file_id}"
+
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
     assert method, "missing method"

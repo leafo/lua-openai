@@ -314,6 +314,15 @@ do
     models = function(self)
       return self:_request("GET", "/models")
     end,
+    files = function(self)
+      return self:_request("GET", "/files")
+    end,
+    file = function(self, file_id)
+      return self:_request("GET", "/files/" .. tostring(file_id))
+    end,
+    delete_file = function(self, file_id)
+      return self:_request("DELETE", "/files/" .. tostring(file_id))
+    end,
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")
