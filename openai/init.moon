@@ -11,10 +11,15 @@ parse_url = require("socket.url").parse
 
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
+content_format = types.string + types.array_of types.one_of {
+  types.shape { type: "text", text: types.string }
+  types.shape { type: "image_url", image_url: types.string }
+}
+
 test_message = types.one_of {
   types.shape {
     role: types.one_of {"system", "user", "assistant"}
-    content: empty + types.string -- this can be empty when function_call is set
+    content: empty + content_format -- this can be empty when function_call is set
     name: empty + types.string
     function_call: empty + types.table
   }

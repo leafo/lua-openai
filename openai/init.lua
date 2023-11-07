@@ -6,6 +6,16 @@ local types
 types = require("tableshape").types
 local parse_url = require("socket.url").parse
 local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
+local content_format = types.string + types.array_of(types.one_of({
+  types.shape({
+    type = "text",
+    text = types.string
+  }),
+  types.shape({
+    type = "image_url",
+    image_url = types.string
+  })
+}))
 local test_message = types.one_of({
   types.shape({
     role = types.one_of({
@@ -13,7 +23,7 @@ local test_message = types.one_of({
       "user",
       "assistant"
     }),
-    content = empty + types.string,
+    content = empty + content_format,
     name = empty + types.string,
     function_call = empty + types.table
   }),
