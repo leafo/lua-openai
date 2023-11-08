@@ -339,6 +339,26 @@ class OpenAI
   delete_file: (file_id) =>
     @_request "DELETE", "/files/#{file_id}"
 
+  assistants: =>
+    @_request "GET", "/assistants", nil, {
+      "OpenAI-Beta": "assistants=v1"
+    }
+
+  threads: =>
+    @_request "GET", "/threads", nil, {
+      "OpenAI-Beta": "assistants=v1"
+    }
+
+  thread_messages: (thread_id) =>
+    @_request "GET", "/threads/#{thread_id}/messages", {
+      "OpenAI-Beta": "assistants=v1"
+    }
+
+  delete_thread: (thread_id) =>
+    @_request "DELETE", "/threads/#{thread_id}", nil, {
+      "OpenAI-Beta": "assistants=v1"
+    }
+
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
     assert method, "missing method"
