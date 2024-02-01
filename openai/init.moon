@@ -359,6 +359,9 @@ class OpenAI
       "OpenAI-Beta": "assistants=v1"
     }
 
+  image_generation: (params) =>
+    @_request "POST", "/images/generations", params
+
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
     assert method, "missing method"

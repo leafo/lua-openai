@@ -323,6 +323,29 @@ do
     delete_file = function(self, file_id)
       return self:_request("DELETE", "/files/" .. tostring(file_id))
     end,
+    assistants = function(self)
+      return self:_request("GET", "/assistants", nil, {
+        ["OpenAI-Beta"] = "assistants=v1"
+      })
+    end,
+    threads = function(self)
+      return self:_request("GET", "/threads", nil, {
+        ["OpenAI-Beta"] = "assistants=v1"
+      })
+    end,
+    thread_messages = function(self, thread_id)
+      return self:_request("GET", "/threads/" .. tostring(thread_id) .. "/messages", {
+        ["OpenAI-Beta"] = "assistants=v1"
+      })
+    end,
+    delete_thread = function(self, thread_id)
+      return self:_request("DELETE", "/threads/" .. tostring(thread_id), nil, {
+        ["OpenAI-Beta"] = "assistants=v1"
+      })
+    end,
+    image_generation = function(self, params)
+      return self:_request("POST", "/images/generations", params)
+    end,
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")
