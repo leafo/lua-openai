@@ -366,8 +366,6 @@ class OpenAI
     assert path, "missing path"
     assert method, "missing method"
 
-    assert @api_key, "missing api_key"
-
     url = @api_base .. path
 
     body = if payload
@@ -378,8 +376,10 @@ class OpenAI
       "Accept": "application/json"
       "Content-Type": "application/json"
       "Content-Length": body and #body or nil
-      "Authorization": "Bearer #{@api_key}"
     }
+
+    if @api_key
+      headers["Authorization"] = "Bearer #{@api_key}"
 
     if more_headers
       for k,v in pairs more_headers
