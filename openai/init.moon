@@ -282,7 +282,7 @@ class OpenAI
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/completions
   completion: (prompt, opts) =>
     payload = {
-      model: "text-davinci-003"
+      model: "gpt-3.5-turbo-instruct"
       :prompt
       temperature: 0.5
       max_tokens: 600
