@@ -265,7 +265,7 @@ class OpenAI
 
     payload = {
       model: "gpt-3.5-turbo"
-      temperature: 0.5
+      -- temperature: 1
       :messages
     }
 
