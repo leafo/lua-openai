@@ -304,7 +304,7 @@ class OpenAI
     assert input, "input must be provided"
 
     payload = {
-      model: "text-embedding-ada-002"
+      model: "text-embedding-3-small"
       :input
     }
 
