@@ -264,8 +264,6 @@ class OpenAI
     assert test_messages messages
 
     payload = {
-      model: "gpt-3.5-turbo"
-      -- temperature: 1
       :messages
     }
 
@@ -282,13 +280,7 @@ class OpenAI
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/completions
   completion: (prompt, opts) =>
     payload = {
-      model: "text-davinci-003"
       :prompt
-      -- temperature: 1
-      -- max_tokens: 16
-      -- top_p: 1
-      -- frequency_penalty: 0
-      -- presence_penalty: 0
     }
 
     if opts
