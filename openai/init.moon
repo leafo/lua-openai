@@ -7,8 +7,6 @@ unpack = table.unpack or unpack
 
 import types from require "tableshape"
 
-parse_url = require("socket.url").parse
-
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
 content_format = types.string + types.array_of types.one_of {
@@ -364,7 +362,6 @@ class OpenAI
       cjson.encode payload
 
     headers = {
-      "Host": parse_url(@api_base).host
       "Accept": "application/json"
       "Content-Type": "application/json"
       "Content-Length": body and #body or nil
