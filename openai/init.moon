@@ -183,21 +183,8 @@ class ChatSession
 
       return nil, err_msg, response
 
-    -- if we are streaming we need to pase the entire fragmented response
     if stream_callback
-      assert type(response) == "string",
-        "Expected string response from streaming output"
-
-      parts = {}
-      f = @client\create_stream_filter (c) ->
-        if c = parse_completion_chunk c
-          table.insert parts, c.content
-
-      f response
-      message = {
-        role: "assistant"
-        content: table.concat parts
-      }
+      message = response.choices[1].message
 
       if append_response
         @append_message message
@@ -274,10 +261,7 @@ class OpenAI
       for k,v in pairs opts
         payload[k] = v
 
-    stream_filter = if payload.stream
-      @create_stream_filter chunk_callback
-
-    @_request "POST", "/chat/completions", payload, nil, stream_filter
+    @_request "POST", "/chat/completions", payload, nil, if payload.stream then chunk_callback else nil
 
   -- call /completions
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/completions
@@ -363,7 +347,7 @@ class OpenAI
   image_generation: (params) =>
     @_request "POST", "/images/generations", params
 
-  _request: (method, path, payload, more_headers, stream_fn) =>
+  _request: (method, path, payload, more_headers, chunk_callback) =>
     assert path, "missing path"
     assert method, "missing method"
 
@@ -393,7 +377,13 @@ class OpenAI
 
     sink = ltn12.sink.table out
 
-    if stream_fn
+    parts = {}
+    if chunk_callback
+      stream_fn = @create_stream_filter (c) ->
+        if parsed = parse_completion_chunk c
+          parts[parsed.index] = parts[parsed.index] or {}
+          table.insert parts[parsed.index], parsed.content
+        chunk_callback(c)
       sink = ltn12.sink.chain stream_fn, sink
 
     _, status, out_headers = @get_http!.request {
@@ -403,6 +393,22 @@ class OpenAI
       :method
       :headers
     }
+
+    if status == 200 and chunk_callback
+      choices = {}
+      data = {
+        object: "chat.completion"
+        :choices
+      }
+      index = 0
+      while parts[index]
+        message = {
+          role: "assistant"
+          content: table.concat parts[index]
+        }
+        choices[index+1] = { :index, :message }
+        index += 1
+      return status, data, out_headers
 
     response = table.concat out
     pcall -> response = cjson.decode response
