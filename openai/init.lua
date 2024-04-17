@@ -349,7 +349,6 @@ do
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")
-      assert(self.api_key, "missing api_key")
       local url = self.api_base .. path
       local body
       if payload then
@@ -359,9 +358,11 @@ do
         ["Host"] = parse_url(self.api_base).host,
         ["Accept"] = "application/json",
         ["Content-Type"] = "application/json",
-        ["Content-Length"] = body and #body or nil,
-        ["Authorization"] = "Bearer " .. tostring(self.api_key)
+        ["Content-Length"] = body and #body or nil
       }
+      if self.api_key then
+        headers["Authorization"] = "Bearer " .. tostring(self.api_key)
+      end
       if more_headers then
         for k, v in pairs(more_headers) do
           headers[k] = v
