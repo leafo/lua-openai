@@ -82,19 +82,6 @@ parse_chat_response = types.partial {
 -- }
 
 
-parse_completion_chunk = types.partial {
-  --object: "chat.completion.chunk"
-  -- not sure of the whole range of chunks, so for now we strictly parse an append
-  choices: types.shape {
-    types.partial {
-      delta: types.shape {
-        "content": types.string\tag "content"
-      }
-      index: types.number\tag "index"
-    }
-  }
-}
-
 -- lpeg pattern to read a json data block from the front of a string, returns
 -- the json blob and the rest of the string if it could parse one
 consume_json_head = do
@@ -380,9 +367,13 @@ class OpenAI
     parts = {}
     if chunk_callback
       stream_fn = @create_stream_filter (c) ->
-        if parsed = parse_completion_chunk c
-          parts[parsed.index] = parts[parsed.index] or {}
-          table.insert parts[parsed.index], parsed.content
+        c0 = c.choices[1]
+        part = parts[c0.index] or {}
+        part.data = c
+        part.finish_reason = c0.finish_reason
+        parts[c0.index] = part
+        if c0.delta.content and c0.delta.content ~= cjson.null
+          table.insert part, c0.delta.content
         chunk_callback(c)
       sink = ltn12.sink.chain stream_fn, sink
 
@@ -396,18 +387,19 @@ class OpenAI
 
     if status == 200 and chunk_callback
       choices = {}
-      data = {
-        object: "chat.completion"
-        :choices
-      }
       index = 0
+      local data
       while parts[index]
+        part = parts[index]
+        data = part.data
         message = {
           role: "assistant"
-          content: table.concat parts[index]
+          content: table.concat part
         }
-        choices[index+1] = { :index, :message }
+        choices[index+1] = { :index, :message, finish_reason: part.finish_reason }
         index += 1
+      data.object = "chat.completion"
+      data.choices = choices
       return status, data, out_headers
 
     response = table.concat out
