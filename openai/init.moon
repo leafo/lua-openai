@@ -13,7 +13,9 @@ empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
 content_format = types.string + types.array_of types.one_of {
   types.shape { type: "text", text: types.string }
-  types.shape { type: "image_url", image_url: types.string }
+  types.shape { type: "image_url", image_url: types.string + types.partial {
+    url: types.string
+  }}
 }
 
 test_message = types.one_of {

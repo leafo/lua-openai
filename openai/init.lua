@@ -13,7 +13,9 @@ local content_format = types.string + types.array_of(types.one_of({
   }),
   types.shape({
     type = "image_url",
-    image_url = types.string
+    image_url = types.string + types.partial({
+      url = types.string
+    })
   })
 }))
 local test_message = types.one_of({
