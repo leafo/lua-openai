@@ -19,7 +19,7 @@ local content_format = types.string + types.array_of(types.one_of({
   })
 }))
 local test_message = types.one_of({
-  types.shape({
+  types.partial({
     role = types.one_of({
       "system",
       "user",
@@ -29,7 +29,7 @@ local test_message = types.one_of({
     name = empty + types.string,
     function_call = empty + types.table
   }),
-  types.shape({
+  types.partial({
     role = types.one_of({
       "function"
     }),

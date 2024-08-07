@@ -19,7 +19,7 @@ content_format = types.string + types.array_of types.one_of {
 }
 
 test_message = types.one_of {
-  types.shape {
+  types.partial {
     role: types.one_of {"system", "user", "assistant"}
     content: empty + content_format -- this can be empty when function_call is set
     name: empty + types.string
@@ -27,7 +27,7 @@ test_message = types.one_of {
   }
 
   -- this message type is for sending a function call response back
-  types.shape {
+  types.partial {
     role: types.one_of {"function"}
     name: types.string
     content: empty + types.string
