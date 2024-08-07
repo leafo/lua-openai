@@ -1,4 +1,4 @@
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 
 ltn12 = require "ltn12"
 cjson = require "cjson"
@@ -171,6 +171,7 @@ class ChatSession
       model: @opts.model
       temperature: @opts.temperature
       stream: stream_callback and true or nil
+      response_format: @opts.response_format
     }, stream_callback
 
     if status != 200

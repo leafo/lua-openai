@@ -1,4 +1,4 @@
-local VERSION = "1.4.0"
+local VERSION = "1.4.1"
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local unpack = table.unpack or unpack
@@ -142,7 +142,8 @@ do
         functions = self.functions,
         model = self.opts.model,
         temperature = self.opts.temperature,
-        stream = stream_callback and true or nil
+        stream = stream_callback and true or nil,
+        response_format = self.opts.response_format
       }, stream_callback)
       if status ~= 200 then
         local err_msg = "Bad status: " .. tostring(status)

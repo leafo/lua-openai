@@ -11,3 +11,6 @@ local: build
 
 lint:
 	moonc -l openai
+
+tags::
+	moon-tags $$(git ls-files openai/ | grep -i '\.moon$$') > $@
