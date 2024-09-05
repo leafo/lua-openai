@@ -219,11 +219,14 @@ class OpenAI
     assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
 
     accumulation_buffer = ""
+    streamed = false
 
     (...) ->
       chunk = ...
 
-      if type(chunk) == "string"
+      if chunk == nil
+        assert not streamed or accumulation_buffer\match"^%s*$", "buffer not empty"
+      elseif type(chunk) == "string"
         accumulation_buffer ..= chunk
 
         while true
@@ -236,8 +239,9 @@ class OpenAI
             field, value, rest_evt = event\match "^(.-):%s+([^\r\n]+)(.-)$"
             switch field
               when "data"
+                streamed = true
                 unless value=="[DONE]"
-                  chunk_callback (json.decode value)
+                  chunk_callback (cjson.decode value)
               when "event","id","retry","" --comment
                 nil -- noop
               when nil
