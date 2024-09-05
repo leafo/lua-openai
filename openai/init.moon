@@ -227,15 +227,24 @@ class OpenAI
         accumulation_buffer ..= chunk
 
         while true
-          line, rest = accumulation_buffer\match "^(.-)\r?\n\r?\n(.-)$"
-          unless line
+          event, rest = accumulation_buffer\match "^(.-)\r?\n\r?\n(.-)$"
+          unless event
             break
 
           accumulation_buffer = rest
-          json_blob = line\match "^data:%s+(.-)%s*$"
-          if json_blob and json_blob~="[DONE]"
-            if chunk = parse_completion_chunk cjson.decode json_blob
-              chunk_callback chunk
+          while event and #event>0
+            field, value, rest_evt = event\match "^(.-):%s+([^\r\n]+)(.-)$"
+            switch field
+              when "data"
+                unless value=="[DONE]"
+                  chunk_callback (json.decode value)
+              when "event","id","retry","" --comment
+                nil -- noop
+              when nil
+                error "Cannot parse SSE event: "..event
+              else
+                error ('Unknown field "%s" with value "%s"')\format(field, value)
+            event = #rest_evt>0 and rest_evt\match"^\r?\n(.*)"
 
       ...
 
