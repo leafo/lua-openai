@@ -29,6 +29,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        luarocks install moonscript
         luarocks install busted
         luarocks make
 
