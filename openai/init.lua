@@ -261,7 +261,6 @@ do
       assert(test_messages(messages))
       local payload = {
         model = "gpt-3.5-turbo",
-        temperature = 0.5,
         messages = messages
       }
       if opts then
