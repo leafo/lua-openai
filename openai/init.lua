@@ -67,7 +67,7 @@ local parse_completion_chunk = types.partial({
   object = "chat.completion.chunk",
   choices = types.shape({
     types.partial({
-      delta = types.shape({
+      delta = types.partial({
         ["content"] = types.string:tag("content")
       }),
       index = types.number:tag("index")
@@ -243,7 +243,7 @@ do
             end
             accumulation_buffer = rest
             do
-              chunk = parse_completion_chunk(cjson.decode(json_blob))
+              chunk = assert(parse_completion_chunk(cjson.decode(json_blob)))
               if chunk then
                 chunk_callback(chunk)
               end

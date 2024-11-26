@@ -89,7 +89,7 @@ parse_completion_chunk = types.partial {
   -- not sure of the whole range of chunks, so for now we strictly parse an append
   choices: types.shape {
     types.partial {
-      delta: types.shape {
+      delta: types.partial {
         "content": types.string\tag "content"
       }
       index: types.number\tag "index"
@@ -253,7 +253,7 @@ class OpenAI
             break
 
           accumulation_buffer = rest
-          if chunk = parse_completion_chunk cjson.decode json_blob
+          if chunk = assert parse_completion_chunk cjson.decode json_blob
             chunk_callback chunk
 
       ...
