@@ -379,13 +379,13 @@ do
       if stream_fn then
         sink = ltn12.sink.chain(stream_fn, sink)
       end
-      local _, status, out_headers = self:get_http().request({
+      local _, status, out_headers = assert(self:get_http().request({
         sink = sink,
         source = source,
         url = url,
         method = method,
         headers = headers
-      })
+      }))
       local response = table.concat(out)
       pcall(function()
         response = cjson.decode(response)

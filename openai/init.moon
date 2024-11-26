@@ -397,7 +397,7 @@ class OpenAI
     if stream_fn
       sink = ltn12.sink.chain stream_fn, sink
 
-    _, status, out_headers = @get_http!.request {
+    _, status, out_headers = assert @get_http!.request {
       :sink
       :source
       :url
