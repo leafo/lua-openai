@@ -397,7 +397,7 @@ do
         if _G.ngx then
           self.config.http_provider = "lapis.nginx.http"
         else
-          self.config.http_provider = "ssl.https"
+          self.config.http_provider = "socket.http"
         end
       end
       return require(self.config.http_provider)

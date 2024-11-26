@@ -415,7 +415,7 @@ class OpenAI
       @config.http_provider = if _G.ngx
         "lapis.nginx.http"
       else
-        "ssl.https"
+        "socket.http"
 
     require @config.http_provider
 
