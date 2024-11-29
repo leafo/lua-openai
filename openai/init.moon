@@ -253,7 +253,7 @@ class OpenAI
             break
 
           accumulation_buffer = rest
-          if chunk = assert parse_completion_chunk cjson.decode json_blob
+          if chunk = parse_completion_chunk cjson.decode json_blob
             chunk_callback chunk
 
       ...

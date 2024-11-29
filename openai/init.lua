@@ -243,7 +243,7 @@ do
             end
             accumulation_buffer = rest
             do
-              chunk = assert(parse_completion_chunk(cjson.decode(json_blob)))
+              chunk = parse_completion_chunk(cjson.decode(json_blob))
               if chunk then
                 chunk_callback(chunk)
               end
