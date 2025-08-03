@@ -34,7 +34,8 @@ local chat = client:new_chat_session({
   messages = {
     {
       role = "system",
-      content = "You are a calculator with access to specified set of functions. All computation should be done with the functions"
+      content =
+		"You are a calculator with access to specified set of functions. All computation should be done with the functions"
     }
   },
   functions = {

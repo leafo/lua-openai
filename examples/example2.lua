@@ -15,13 +15,13 @@ print(chat:send("List your top 5 favorite colors"))
 print(chat:send("Excluding the colors you just listed, tell me your favorite color"))
 
 -- the entire chat history is stored in the messages field
-for idx, message in ipairs(chat.messages) do
+for _, message in ipairs(chat.messages) do
   print(message.role, message.content)
 end
 
 -- You can stream the output by providing a callback as the second argument
 -- the full response concatenated is also returned by the function
-local response = chat:send("What's the most boring color?", function(chunk)
+local _ = chat:send("What's the most boring color?", function(chunk)
   io.stdout:write(chunk.content)
   io.stdout:flush()
 end)

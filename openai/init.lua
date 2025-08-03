@@ -229,7 +229,7 @@ do
     new_chat_session = function(self, ...)
       return ChatSession(self, ...)
     end,
-    create_stream_filter = function(self, chunk_callback)
+    create_stream_filter = function(_, chunk_callback)
       assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
       local accumulation_buffer = ""
       return function(...)
