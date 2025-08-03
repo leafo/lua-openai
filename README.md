@@ -221,6 +221,9 @@ Constructor for the OpenAI client.
 local openai = require("openai")
 local api_key = "your-api-key"
 local client = openai.new(api_key)
+
+--optionally provide an alternate API URL
+client.api_base = "http://my_llama_cpp.local/v1"
 ```
 
 ##### `client:new_chat_session(...)`
