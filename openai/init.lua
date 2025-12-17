@@ -49,6 +49,7 @@ do
   local _class_0
   local _base_0 = {
     api_base = "https://api.openai.com/v1",
+    default_model = "gpt-4.1",
     new_chat_session = function(self, ...)
       return ChatSession(self, ...)
     end,
@@ -88,7 +89,7 @@ do
       local test_messages = types.array_of(test_message)
       assert(test_messages(messages))
       local payload = {
-        model = "gpt-3.5-turbo",
+        model = self.default_model,
         messages = messages
       }
       if opts then
@@ -198,6 +199,7 @@ do
       local create_response_stream_filter
       create_response_stream_filter = require("openai.responses").create_response_stream_filter
       local payload = {
+        model = self.default_model,
         input = input
       }
       if opts then

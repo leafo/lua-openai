@@ -1,7 +1,6 @@
 local cjson = require("cjson")
 local types
 types = require("tableshape").types
-local DEFAULT_RESPONSES_MODEL = "gpt-4.1-mini"
 local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
 local input_format = types.string + types.array_of(types.partial({
   role = types.one_of({

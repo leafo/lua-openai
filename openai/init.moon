@@ -65,6 +65,7 @@ consume_json_head = do
 -- TODO: hadle appending the streaming response to the output
 class OpenAI
   api_base: "https://api.openai.com/v1"
+  default_model: "gpt-4.1"
 
   -- config: types.shape {
   --   http_provider: types.string\describe("HTTP module name used for requests") + types nil
@@ -116,7 +117,7 @@ class OpenAI
     assert test_messages messages
 
     payload = {
-      model: "gpt-3.5-turbo"
+      model: @default_model
       :messages
     }
 
@@ -237,7 +238,10 @@ class OpenAI
   create_response: (input, opts={}, stream_callback=nil) =>
     import create_response_stream_filter from require "openai.responses"
 
-    payload = { :input }
+    payload = {
+      model: @default_model
+      :input
+    }
 
     if opts
       for k, v in pairs opts

@@ -1,8 +1,6 @@
 cjson = require "cjson"
 import types from require "tableshape"
 
-DEFAULT_RESPONSES_MODEL = "gpt-4.1-mini"
-
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
 -- Schema for validating input parameter which can be string or array of messages
