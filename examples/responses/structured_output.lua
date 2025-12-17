@@ -52,13 +52,10 @@ local status, response = client:create_response(
 )
 
 if status ~= 200 then
-  print("Error:", status)
-  print(cjson.encode(response))
+  io.stderr:write("Error: " .. status .. "\n")
+  io.stderr:write(cjson.encode(response) .. "\n")
   os.exit(1)
 end
-
-print("Response ID:", response.id)
-print("Raw output:")
 
 -- Extract the text content from the response
 for _, output_item in ipairs(response.output or {}) do
@@ -66,23 +63,16 @@ for _, output_item in ipairs(response.output or {}) do
     for _, content_item in ipairs(output_item.content) do
       if content_item.type == "output_text" and content_item.text then
         print(content_item.text)
-
-        -- Parse and display the structured data
-        local parsed = cjson.decode(content_item.text)
-        print("\nParsed structured data:")
-        print("  Name:", parsed.name)
-        print("  Age:", parsed.age)
-        print("  Occupation:", parsed.occupation)
-        print("  Skills:", table.concat(parsed.skills, ", "))
-        print("  Employed:", parsed.is_employed and "Yes" or "No")
+        -- Verify it parses as valid JSON
+        assert(cjson.decode(content_item.text), "Failed to parse JSON")
       end
     end
   end
 end
 
-print("\n--- Using ResponsesChatSession with structured output ---\n")
+io.stderr:write("\n--- Using ResponsesChatSession with structured output ---\n\n")
 
--- You can also use structured outputs with the chat session by passing options to create_response
+-- You can also use structured outputs with the chat session
 local session = client:new_response_chat_session()
 
 local recipe_schema = {
@@ -118,29 +108,15 @@ local recipe_schema = {
   }
 }
 
--- Use create_response directly to pass the text format option
 local recipe_response, err = session:create_response("Give me a recipe for chocolate chip cookies", {
   text = { format = recipe_schema }
 })
 
 if recipe_response then
-  print("Recipe response:")
   print(recipe_response.output_text)
-
-  local recipe = cjson.decode(recipe_response.output_text)
-  print("\nFormatted recipe:")
-  print("Dish:", recipe.dish_name)
-  print("Prep time:", recipe.prep_time_minutes, "minutes")
-  print("Cook time:", recipe.cook_time_minutes, "minutes")
-  print("Servings:", recipe.servings)
-  print("\nIngredients:")
-  for _, ing in ipairs(recipe.ingredients) do
-    print("  -", ing.amount, ing.item)
-  end
-  print("\nSteps:")
-  for i, step in ipairs(recipe.steps) do
-    print(string.format("  %d. %s", i, step))
-  end
+  -- Verify it parses as valid JSON
+  assert(cjson.decode(recipe_response.output_text), "Failed to parse JSON")
 else
-  print("Error:", err)
+  io.stderr:write("Error: " .. tostring(err) .. "\n")
+  os.exit(1)
 end
