@@ -1,6 +1,47 @@
 local cjson = require("cjson")
 local types
 types = require("tableshape").types
+local response_mt = {
+  __index = {
+    get_output_text = function(self)
+      local parts = { }
+      if self.output then
+        local _list_0 = self.output
+        for _index_0 = 1, #_list_0 do
+          local block = _list_0[_index_0]
+          if block.content then
+            local _list_1 = block.content
+            for _index_1 = 1, #_list_1 do
+              local item = _list_1[_index_1]
+              if item.type == "output_text" and item.text then
+                table.insert(parts, item.text)
+              end
+            end
+          end
+        end
+      elseif self.content then
+        local _list_0 = self.content
+        for _index_0 = 1, #_list_0 do
+          local item = _list_0[_index_0]
+          if item.type == "output_text" and item.text then
+            table.insert(parts, item.text)
+          end
+        end
+      end
+      return table.concat(parts)
+    end
+  },
+  __tostring = function(self)
+    return self:get_output_text()
+  end
+}
+local add_response_helpers
+add_response_helpers = function(response)
+  if response then
+    setmetatable(response, response_mt)
+  end
+  return response
+end
 local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
 local input_content_item = types.one_of({
   types.partial({
@@ -107,44 +148,6 @@ parse_response_stream_chunk = function(chunk)
     }
   end
 end
-local extract_output_text
-extract_output_text = function(response)
-  if not (response) then
-    return ""
-  end
-  local parts = { }
-  if response.output then
-    local _list_0 = response.output
-    for _index_0 = 1, #_list_0 do
-      local block = _list_0[_index_0]
-      if block.content then
-        local _list_1 = block.content
-        for _index_1 = 1, #_list_1 do
-          local item = _list_1[_index_1]
-          if item.type == "output_text" and item.text then
-            table.insert(parts, item.text)
-          end
-        end
-      end
-    end
-  elseif response.content then
-    local _list_0 = response.content
-    for _index_0 = 1, #_list_0 do
-      local item = _list_0[_index_0]
-      if item.type == "output_text" and item.text then
-        table.insert(parts, item.text)
-      end
-    end
-  end
-  return table.concat(parts)
-end
-local add_response_helpers
-add_response_helpers = function(response)
-  if response then
-    response.output_text = extract_output_text(response)
-  end
-  return response
-end
 local create_response_stream_filter
 create_response_stream_filter = function(chunk_callback)
   assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
@@ -228,8 +231,8 @@ do
             table.insert(accumulated_text, chunk.text_delta)
           end
           if chunk.response then
-            final_response = add_response_helpers(chunk.response)
-            chunk.response = final_response
+            add_response_helpers(chunk.response)
+            final_response = chunk.response
           end
           if stream_callback then
             return stream_callback(chunk)
@@ -284,6 +287,5 @@ return {
   ResponsesChatSession = ResponsesChatSession,
   parse_responses_response = parse_responses_response,
   parse_response_stream_chunk = parse_response_stream_chunk,
-  create_response_stream_filter = create_response_stream_filter,
-  extract_output_text = extract_output_text
+  create_response_stream_filter = create_response_stream_filter
 }

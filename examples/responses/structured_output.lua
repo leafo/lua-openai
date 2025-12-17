@@ -113,9 +113,9 @@ local recipe_response, err = session:create_response("Give me a recipe for choco
 })
 
 if recipe_response then
-  print(recipe_response.output_text)
+  print(recipe_response:get_output_text())
   -- Verify it parses as valid JSON
-  assert(cjson.decode(recipe_response.output_text), "Failed to parse JSON")
+  assert(cjson.decode(recipe_response:get_output_text()), "Failed to parse JSON")
 else
   io.stderr:write("Error: " .. tostring(err) .. "\n")
   os.exit(1)

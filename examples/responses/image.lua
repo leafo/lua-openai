@@ -19,7 +19,7 @@ local response, err = session:send({
 
 if response then
   print("Response ID:", response.id)
-  print("Output:", response.output_text)
+  print("Output:", response:get_output_text())
 else
   print("Error:", err)
 end

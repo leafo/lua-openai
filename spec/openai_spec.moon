@@ -451,11 +451,11 @@ describe "OpenAI API Client", ->
 
       first = assert session\send "Hello"
       assert.same "resp_first", first.id
-      assert.same "First reply", first.output_text
+      assert.same "First reply", first\get_output_text!
 
       second = assert session\send "Hello again"
       assert.same "resp_second", second.id
-      assert.same "Second reply", second.output_text
+      assert.same "Second reply", second\get_output_text!
 
       assert.same {
         first
@@ -491,7 +491,7 @@ describe "OpenAI API Client", ->
       response = assert session\send "Hello"
 
       assert.same "resp_custom", response.id
-      assert.same "Custom model reply", response.output_text
+      assert.same "Custom model reply", response\get_output_text!
 
     it "retrieves a stored response by id (raw API)", ->
       client = OpenAI "test-api-key"
@@ -598,7 +598,7 @@ describe "OpenAI API Client", ->
 
         if chunk.response
           assert.same "resp_stream", chunk.response.id
-          assert.same "Hello world", chunk.response.output_text
+          assert.same "Hello world", chunk.response\get_output_text!
 
       session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
       out = assert session\send "Say hello back", stream_callback
@@ -621,6 +621,5 @@ describe "OpenAI API Client", ->
                 }
               }
             }
-            output_text: "Hello world"
           }}
       }, received

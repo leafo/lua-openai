@@ -1,6 +1,33 @@
 cjson = require "cjson"
 import types from require "tableshape"
 
+-- methods attached to a resulting response object
+response_mt = {
+  __index: {
+    -- merge all the output chunks of a response object into a single string
+    get_output_text: =>
+      parts = {}
+      if @output
+        for block in *@output
+          if block.content
+            for item in *block.content
+              if item.type == "output_text" and item.text
+                table.insert parts, item.text
+      elseif @content
+        for item in *@content
+          if item.type == "output_text" and item.text
+            table.insert parts, item.text
+
+      table.concat parts
+  }
+  __tostring: => @get_output_text!
+}
+
+add_response_helpers = (response) ->
+  if response
+    setmetatable response, response_mt
+  response
+
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
 -- Schema for validating input content items (text, images, etc.)
@@ -58,7 +85,6 @@ parse_responses_response = types.partial {
   status: empty + types.string\tag "status"
 }
 
--- Normalize streaming events coming back from the Responses API
 parse_response_stream_chunk = (chunk) ->
   return unless type(chunk) == "table"
   return unless chunk.type
@@ -94,28 +120,6 @@ parse_response_stream_chunk = (chunk) ->
       raw: chunk
     }
 
--- helper to extract text from response content as single string
-extract_output_text = (response) ->
-  return "" unless response
-  parts = {}
-  if response.output
-    for block in *response.output
-      if block.content
-        for item in *block.content
-          if item.type == "output_text" and item.text
-            table.insert parts, item.text
-  elseif response.content
-    for item in *response.content
-      if item.type == "output_text" and item.text
-        table.insert parts, item.text
-
-  table.concat parts
-
--- add helper fields to the response output to make it easier to access text output
-add_response_helpers = (response) ->
-  if response
-    response.output_text = extract_output_text response
-  response
 
 -- Wraps a chunk callback to handle streaming chunked response from server
 create_response_stream_filter = (chunk_callback) ->
@@ -198,8 +202,8 @@ class ResponsesChatSession
           table.insert accumulated_text, chunk.text_delta
 
         if chunk.response
-          final_response = add_response_helpers chunk.response
-          chunk.response = final_response
+          add_response_helpers chunk.response
+          final_response = chunk.response
 
         if stream_callback
           stream_callback chunk
@@ -231,5 +235,4 @@ class ResponsesChatSession
   :parse_responses_response
   :parse_response_stream_chunk
   :create_response_stream_filter
-  :extract_output_text
 }

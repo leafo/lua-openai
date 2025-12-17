@@ -86,7 +86,7 @@ if #tool_calls > 0 then
       })
 
       if follow_up then
-        print("\nFinal response:", follow_up.output_text)
+        print("\nFinal response:", follow_up:get_output_text())
       else
         print("Error sending tool result:", err2)
       end
@@ -94,5 +94,5 @@ if #tool_calls > 0 then
   end
 else
   -- No tool calls, just print the response
-  print("Response:", response.output_text)
+  print("Response:", response:get_output_text())
 end
