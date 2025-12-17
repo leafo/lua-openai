@@ -3,10 +3,19 @@ import types from require "tableshape"
 
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
+-- Schema for validating input content items (text, images, etc.)
+input_content_item = types.one_of {
+  types.partial { type: "input_text", text: types.string }
+  types.partial { type: "input_image", image_url: types.string } -- URL or base64 data URI (e.g. "data:image/jpeg;base64,...")
+  types.partial { type: "input_file", file_id: types.string } -- uploaded file reference
+  types.partial { type: "input_file", file_url: types.string } -- external URL (PDFs)
+  types.partial { type: "input_file", file_data: types.string, filename: types.string } -- base64 encoded
+}
+
 -- Schema for validating input parameter which can be string or array of messages
 input_format = types.string + types.array_of types.partial {
   role: types.one_of {"system", "user", "assistant"}
-  content: types.string
+  content: types.string + types.array_of(input_content_item)
 }
 
 -- Schema for validating response content items

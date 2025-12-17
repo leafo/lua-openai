@@ -2,13 +2,36 @@ local cjson = require("cjson")
 local types
 types = require("tableshape").types
 local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
+local input_content_item = types.one_of({
+  types.partial({
+    type = "input_text",
+    text = types.string
+  }),
+  types.partial({
+    type = "input_image",
+    image_url = types.string
+  }),
+  types.partial({
+    type = "input_file",
+    file_id = types.string
+  }),
+  types.partial({
+    type = "input_file",
+    file_url = types.string
+  }),
+  types.partial({
+    type = "input_file",
+    file_data = types.string,
+    filename = types.string
+  })
+})
 local input_format = types.string + types.array_of(types.partial({
   role = types.one_of({
     "system",
     "user",
     "assistant"
   }),
-  content = types.string
+  content = types.string + types.array_of(input_content_item)
 }))
 local content_item = types.one_of({
   types.partial({
