@@ -7,14 +7,17 @@ local status, response = client:chat({
   {
     role = "user",
     content = {
-      { type = "image_url", image_url = "https://leafo.net/hi.png" },
+      { type = "image_url", image_url = { url = "https://leafo.net/hi.png" } },
       { type = "text", text = "Describe this image" }
     }
   }
 }, {
-  model = "gpt-4-vision-preview"
+  -- model = "gpt-4-vision-preview" -- not needed anymore, all modern models support vision
 })
 
 if status == 200 then
   print(response.choices[1].message.content)
+else
+  print("Got unexpected status:", status)
+  print(require("cjson").encode(response))
 end

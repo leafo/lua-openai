@@ -7,7 +7,7 @@ empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
 content_format = types.string + types.array_of types.one_of {
   types.shape { type: "text", text: types.string }
-  types.shape { type: "image_url", image_url: types.string + types.partial {
+  types.shape { type: "image_url", image_url: types.partial {
     url: types.string
   }}
 }
@@ -232,7 +232,14 @@ class ChatSession
       return nil, err, response
 
     if append_response
-      @append_message out.message
+      -- only append the fields needed for chat history, not extra API fields like annotations
+      message = {
+        role: out.message.role
+        content: out.message.content
+      }
+      if out.message.function_call
+        message.function_call = out.message.function_call
+      @append_message message
 
     -- response is missing for function_calls, so we return the entire message object
     out.response or out.message

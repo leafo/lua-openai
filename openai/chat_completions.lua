@@ -9,7 +9,7 @@ local content_format = types.string + types.array_of(types.one_of({
   }),
   types.shape({
     type = "image_url",
-    image_url = types.string + types.partial({
+    image_url = types.partial({
       url = types.string
     })
   })
@@ -203,7 +203,14 @@ do
         return nil, err, response
       end
       if append_response then
-        self:append_message(out.message)
+        local message = {
+          role = out.message.role,
+          content = out.message.content
+        }
+        if out.message.function_call then
+          message.function_call = out.message.function_call
+        end
+        self:append_message(message)
       end
       return out.response or out.message
     end
