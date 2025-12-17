@@ -24,6 +24,9 @@ class OpenAI
         @config[k] = v
 
   new_chat_session: (...) =>
+    @new_chat_completions_session ...
+
+  new_chat_completions_session: (...) =>
     import ChatSession from require "openai.chat_completions"
     ChatSession @, ...
 

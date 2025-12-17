@@ -12,6 +12,9 @@ do
     api_base = "https://api.openai.com/v1",
     default_model = "gpt-4.1",
     new_chat_session = function(self, ...)
+      return self:new_chat_completions_session(...)
+    end,
+    new_chat_completions_session = function(self, ...)
       local ChatSession
       ChatSession = require("openai.chat_completions").ChatSession
       return ChatSession(self, ...)
