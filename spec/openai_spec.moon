@@ -462,6 +462,37 @@ describe "OpenAI API Client", ->
         second
       }, session.response_history
 
+    it "uses custom model in session", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        assert.same "POST", method
+        assert.same "/responses", path
+        assert.same "my-custom-model", payload.model
+
+        200, {
+          id: "resp_custom"
+          object: "response"
+          model: "my-custom-model"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "Custom model reply" }
+              }
+            }
+          }
+          usage: {}
+          status: "completed"
+        }
+
+      session = client\new_response_chat_session { model: "my-custom-model" }
+      response = assert session\send "Hello"
+
+      assert.same "resp_custom", response.id
+      assert.same "Custom model reply", response.output_text
+
     it "retrieves a stored response by id (raw API)", ->
       client = OpenAI "test-api-key"
 
