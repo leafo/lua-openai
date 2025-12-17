@@ -41,7 +41,7 @@ local function get_weather(location, unit)
   }
 end
 
-local session = client:new_response_chat_session({
+local session = client:new_responses_chat_session({
   tools = tools
 })
 

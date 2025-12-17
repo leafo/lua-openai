@@ -1,4 +1,4 @@
-local VERSION = "1.4.3"
+local VERSION = "1.5.0"
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local unpack = table.unpack or unpack
@@ -19,7 +19,7 @@ do
       ChatSession = require("openai.chat_completions").ChatSession
       return ChatSession(self, ...)
     end,
-    new_response_chat_session = function(self, ...)
+    new_responses_chat_session = function(self, ...)
       local ResponsesChatSession
       ResponsesChatSession = require("openai.responses").ResponsesChatSession
       return ResponsesChatSession(self, ...)

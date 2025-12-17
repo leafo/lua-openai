@@ -285,6 +285,5 @@ return {
   parse_responses_response = parse_responses_response,
   parse_response_stream_chunk = parse_response_stream_chunk,
   create_response_stream_filter = create_response_stream_filter,
-  add_response_helpers = add_response_helpers,
   extract_output_text = extract_output_text
 }

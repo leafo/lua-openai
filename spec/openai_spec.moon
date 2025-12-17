@@ -447,7 +447,7 @@ describe "OpenAI API Client", ->
           assert.same "resp_first", payload.previous_response_id
           return 200, build_response "resp_second", "Second reply"
 
-      session = client\new_response_chat_session { model: "gpt-4.1-mini" }
+      session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
 
       first = assert session\send "Hello"
       assert.same "resp_first", first.id
@@ -487,7 +487,7 @@ describe "OpenAI API Client", ->
           status: "completed"
         }
 
-      session = client\new_response_chat_session { model: "my-custom-model" }
+      session = client\new_responses_chat_session { model: "my-custom-model" }
       response = assert session\send "Hello"
 
       assert.same "resp_custom", response.id
@@ -600,7 +600,7 @@ describe "OpenAI API Client", ->
           assert.same "resp_stream", chunk.response.id
           assert.same "Hello world", chunk.response.output_text
 
-      session = client\new_response_chat_session { model: "gpt-4.1-mini" }
+      session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
       out = assert session\send "Say hello back", stream_callback
 
       -- Session returns accumulated text

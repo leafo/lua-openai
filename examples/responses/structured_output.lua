@@ -73,7 +73,7 @@ end
 io.stderr:write("\n--- Using ResponsesChatSession with structured output ---\n\n")
 
 -- You can also use structured outputs with the chat session
-local session = client:new_response_chat_session()
+local session = client:new_responses_chat_session()
 
 local recipe_schema = {
   type = "json_schema",

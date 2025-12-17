@@ -111,7 +111,7 @@ extract_output_text = (response) ->
 
   table.concat parts
 
--- Add helper method to response objects
+-- add helper fields to the response output to make it easier to access text output
 add_response_helpers = (response) ->
   if response
     response.output_text = extract_output_text response
@@ -231,6 +231,5 @@ class ResponsesChatSession
   :parse_responses_response
   :parse_response_stream_chunk
   :create_response_stream_filter
-  :add_response_helpers
   :extract_output_text
 }

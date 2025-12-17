@@ -5,7 +5,7 @@ local cjson = require("cjson")
 
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
-local session = client:new_response_chat_session()
+local session = client:new_responses_chat_session()
 
 local response, err = session:send({
   {

@@ -22,7 +22,7 @@ print "Response ID: #{response.id}"
 print "Status: #{response.status or 'unknown'}"
 
 print "\n== Streaming example (via session) =="
-stream_session = client\new_response_chat_session!
+stream_session = client\new_responses_chat_session!
 
 streamed_text, err, raw = stream_session\send "Stream a brief greeting.", (chunk) ->
   if chunk.text_delta
@@ -41,7 +41,7 @@ unless streamed_text
 print "Full streamed text: #{streamed_text}"
 
 print "\n== Stateful session =="
-session = client\new_response_chat_session {
+session = client\new_responses_chat_session {
   instructions: "Keep answers concise."
 }
 

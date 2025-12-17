@@ -38,7 +38,7 @@ if not (streamed_text) then
 end
 print("Full streamed text: " .. tostring(streamed_text))
 print("\n== Stateful session ==")
-local session = client:new_response_session({
+local session = client:new_responses_chat_session({
   model = "gpt-4.1-mini",
   instructions = "Keep answers concise."
 })

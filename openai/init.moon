@@ -1,4 +1,4 @@
-VERSION = "1.4.3"
+VERSION = "1.5.0"
 
 ltn12 = require "ltn12"
 cjson = require "cjson"
@@ -30,7 +30,7 @@ class OpenAI
     import ChatSession from require "openai.chat_completions"
     ChatSession @, ...
 
-  new_response_chat_session: (...) =>
+  new_responses_chat_session: (...) =>
     import ResponsesChatSession from require "openai.responses"
     ResponsesChatSession @, ...
 
