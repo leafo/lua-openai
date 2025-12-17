@@ -4,7 +4,7 @@ cjson = require "cjson"
 
 describe "OpenAI API Client", ->
   before_each ->
-    package.loaded["ssl.https"] = {
+    package.loaded["socket.http"] = {
       request: (opts={}) ->
         response = if opts.url\match "/chat/completions"
           {
@@ -20,6 +20,32 @@ describe "OpenAI API Client", ->
                   role: "assistant"
                 }
               }
+            }
+          }
+        elseif opts.url\match "/responses"
+          {
+            id: "resp_123"
+            object: "response"
+            model: "gpt-4.1-mini"
+            output: {
+              {
+                id: "msg_123"
+                type: "message"
+                role: "assistant"
+                content: {
+                  {
+                    type: "output_text"
+                    text: "This is a responses reply."
+                    annotations: {}
+                  }
+                }
+              }
+            }
+            stop_reason: "end_turn"
+            usage: {
+              prompt_tokens: 10
+              completion_tokens: 5
+              total_tokens: 15
             }
           }
         else
@@ -337,7 +363,7 @@ describe "OpenAI API Client", ->
 
   describe "streaming", ->
     before_each ->
-      package.loaded["ssl.https"] = {
+      package.loaded["socket.http"] = {
         request: (opts={}) ->
           chunks = {
             -- Note: this chunk contains two json blobs in it, we should still be able to parse it
@@ -375,3 +401,111 @@ describe "OpenAI API Client", ->
       }, chunks_received
 
       assert.same "This is a chat response.", response
+
+  describe "responses", ->
+    it "creates a response and exposes output_text helper", ->
+      client = OpenAI "test-api-key"
+
+      response = assert client\create_response "Say hello"
+
+      assert.same "resp_123", response.id
+      assert.same "This is a responses reply.", response.output_text
+      assert.same "end_turn", response.stop_reason
+
+    it "tracks previous_response_id in a session", ->
+      client = OpenAI "test-api-key"
+
+      build_response = (id, text) ->
+        {
+          id: id
+          object: "response"
+          model: "gpt-4.1-mini"
+          output: {
+            {
+              id: "msg_#{id}"
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: text }
+              }
+            }
+          }
+          usage: {}
+          stop_reason: "end_turn"
+        }
+
+      calls = 0
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        calls += 1
+        assert.same "POST", method
+        assert.same "/responses", path
+
+        if calls == 1
+          assert.is_nil payload.previous_response_id
+          return 200, build_response "resp_first", "First reply"
+        else
+          assert.same "resp_first", payload.previous_response_id
+          return 200, build_response "resp_second", "Second reply"
+
+      session = client\new_response_session { model: "gpt-4.1-mini" }
+
+      first = assert session\send "Hello"
+      assert.same "resp_first", first.id
+      assert.same "First reply", first.output_text
+
+      second = assert session\send "Hello again"
+      assert.same "resp_second", second.id
+      assert.same "Second reply", second.output_text
+
+      assert.same {
+        first
+        second
+      }, session.response_history
+
+    it "streams response deltas", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload, _, stream_filter) ->
+        chunks = {
+          "data: {\"type\": \"response.output_text.delta\", \"delta\": \"Hello\"}\n"
+          "data: {\"type\": \"response.output_text.delta\", \"delta\": \" world\"}\n"
+          "data: {\"type\": \"response.completed\", \"response\": {\"id\": \"resp_stream\", \"object\": \"response\", \"output\": [{\"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"Hello world\"}]}]}}\n"
+          "data: [DONE]\n"
+        }
+
+        if stream_filter
+          for chunk in *chunks
+            stream_filter chunk
+
+        200, table.concat chunks
+
+      received = {}
+      stream_callback = (chunk) ->
+        table.insert received, chunk
+
+        if chunk.response
+          assert.same "resp_stream", chunk.response.id
+          assert.same "Hello world", chunk.response.output_text
+
+      out = assert client\create_response "Say hello back", { stream: true }, stream_callback
+
+      assert.same "Hello world", out
+
+      assert.same {
+        { type: "response.output_text.delta", text_delta: "Hello", raw: { type: "response.output_text.delta", delta: "Hello" } }
+        { type: "response.output_text.delta", text_delta: " world", raw: { type: "response.output_text.delta", delta: " world" } }
+        { type: "response.completed", response: {
+            id: "resp_stream"
+            object: "response"
+            output: {
+              {
+                type: "message"
+                role: "assistant"
+                content: {
+                  { type: "output_text", text: "Hello world" }
+                }
+              }
+            }
+            output_text: "Hello world"
+          }}
+      }, received

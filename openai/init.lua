@@ -427,9 +427,18 @@ do
   _base_0.__class = _class_0
   OpenAI = _class_0
 end
+local responses_methods, ResponseSession
+do
+  local _obj_0 = require("openai.responses")
+  responses_methods, ResponseSession = _obj_0.responses_methods, _obj_0.ResponseSession
+end
+for k, v in pairs(responses_methods) do
+  OpenAI.__base[k] = v
+end
 return {
   OpenAI = OpenAI,
   ChatSession = ChatSession,
+  ResponseSession = ResponseSession,
   VERSION = VERSION,
   new = OpenAI
 }

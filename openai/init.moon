@@ -364,6 +364,7 @@ class OpenAI
   image_generation: (params) =>
     @_request "POST", "/images/generations", params
 
+  -- Responses API methods
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
     assert method, "missing method"
@@ -419,4 +420,9 @@ class OpenAI
 
     require @config.http_provider
 
-{:OpenAI, :ChatSession, :VERSION, new: OpenAI}
+import responses_methods, ResponseSession from require "openai.responses"
+
+for k, v in pairs responses_methods
+  OpenAI.__base[k] = v
+
+{:OpenAI, :ChatSession, :ResponseSession, :VERSION, new: OpenAI}
