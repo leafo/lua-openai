@@ -23,6 +23,8 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-      ["openai"] = "openai/init.lua"
+      ["openai"] = "openai/init.lua",
+      ["openai.chat_session"] = "openai/chat_session.lua",
+      ["openai.responses"] = "openai/responses.lua"
    }
 }
