@@ -22,6 +22,7 @@ end
 
 print("Response ID: " .. response.id)
 print("Status: " .. (response.status or "unknown"))
+print(response.output[1].content[1].text)
 
 print("\n== Streaming example (via session) ==")
 local stream_session = client:new_responses_chat_session()
