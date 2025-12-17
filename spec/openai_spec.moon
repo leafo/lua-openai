@@ -41,7 +41,7 @@ describe "OpenAI API Client", ->
                 }
               }
             }
-            stop_reason: "end_turn"
+            status: "completed"
             usage: {
               prompt_tokens: 10
               completion_tokens: 5
@@ -403,14 +403,14 @@ describe "OpenAI API Client", ->
       assert.same "This is a chat response.", response
 
   describe "responses", ->
-    it "creates a response and exposes output_text helper", ->
+    it "creates a response (raw API)", ->
       client = OpenAI "test-api-key"
 
-      response = assert client\create_response "Say hello"
+      status, response = client\create_response "Say hello"
 
+      assert.same 200, status
       assert.same "resp_123", response.id
-      assert.same "This is a responses reply.", response.output_text
-      assert.same "end_turn", response.stop_reason
+      assert.same "completed", response.status
 
     it "tracks previous_response_id in a session", ->
       client = OpenAI "test-api-key"
@@ -431,7 +431,7 @@ describe "OpenAI API Client", ->
             }
           }
           usage: {}
-          stop_reason: "end_turn"
+          status: "completed"
         }
 
       calls = 0
@@ -447,7 +447,7 @@ describe "OpenAI API Client", ->
           assert.same "resp_first", payload.previous_response_id
           return 200, build_response "resp_second", "Second reply"
 
-      session = client\new_response_session { model: "gpt-4.1-mini" }
+      session = client\new_response_chat_session { model: "gpt-4.1-mini" }
 
       first = assert session\send "Hello"
       assert.same "resp_first", first.id
@@ -462,7 +462,89 @@ describe "OpenAI API Client", ->
         second
       }, session.response_history
 
-    it "streams response deltas", ->
+    it "retrieves a stored response by id (raw API)", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path) ->
+        assert.same "GET", method
+        assert.same "/responses/resp_123", path
+
+        200, {
+          id: "resp_123"
+          object: "response"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "Stored reply" }
+              }
+            }
+          }
+        }
+
+      status, res = client\response "resp_123"
+      assert.same 200, status
+      assert.same "resp_123", res.id
+
+    it "deletes a stored response", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path) ->
+        assert.same "DELETE", method
+        assert.same "/responses/resp_delete", path
+        200, { deleted: true }
+
+      status, res = client\delete_response "resp_delete"
+      assert.same 200, status
+      assert.same { deleted: true }, res
+
+    it "cancels an in-progress response", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path) ->
+        assert.same "POST", method
+        assert.same "/responses/resp_cancel/cancel", path
+        200, { cancelled: true }
+
+      status, res = client\cancel_response "resp_cancel"
+      assert.same 200, status
+      assert.same { cancelled: true }, res
+
+    it "streams response deltas (raw API)", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload, _, stream_filter) ->
+        chunks = {
+          "data: {\"type\": \"response.output_text.delta\", \"delta\": \"Hello\"}\n"
+          "data: {\"type\": \"response.output_text.delta\", \"delta\": \" world\"}\n"
+          "data: {\"type\": \"response.completed\", \"response\": {\"id\": \"resp_stream\", \"object\": \"response\", \"output\": [{\"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"Hello world\"}]}]}}\n"
+          "data: [DONE]\n"
+        }
+
+        if stream_filter
+          for chunk in *chunks
+            stream_filter chunk
+
+        200, table.concat chunks
+
+      received = {}
+      stream_callback = (chunk) ->
+        table.insert received, chunk
+
+      status, response = client\create_response "Say hello back", { stream: true }, stream_callback
+
+      assert.same 200, status
+      -- Raw API returns the concatenated SSE data
+      assert.truthy response
+
+      -- Stream callback received parsed chunks
+      assert.same 3, #received
+      assert.same "Hello", received[1].text_delta
+      assert.same " world", received[2].text_delta
+      assert.same "response.completed", received[3].type
+
+    it "streams response deltas via session", ->
       client = OpenAI "test-api-key"
 
       stub(client, "_request").invokes (c, method, path, payload, _, stream_filter) ->
@@ -487,8 +569,10 @@ describe "OpenAI API Client", ->
           assert.same "resp_stream", chunk.response.id
           assert.same "Hello world", chunk.response.output_text
 
-      out = assert client\create_response "Say hello back", { stream: true }, stream_callback
+      session = client\new_response_chat_session { model: "gpt-4.1-mini" }
+      out = assert session\send "Say hello back", stream_callback
 
+      -- Session returns accumulated text
       assert.same "Hello world", out
 
       assert.same {

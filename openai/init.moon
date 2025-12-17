@@ -79,6 +79,10 @@ class OpenAI
   new_chat_session: (...) =>
     ChatSession @, ...
 
+  new_response_chat_session: (...) =>
+    import ResponsesChatSession from require "openai.responses"
+    ResponsesChatSession @, ...
+
   -- creates a ltn12 compatible filter function that will call chunk_callback
   -- for each parsed json chunk from the server-sent events api response
   create_stream_filter: (chunk_callback) =>
@@ -209,6 +213,41 @@ class OpenAI
   image_generation: (params) =>
     @_request "POST", "/images/generations", params
 
+  -- Get a stored response by ID
+  -- Returns: status, response, headers (raw result from _request)
+  response: (response_id) =>
+    assert response_id, "response_id is required"
+    @_request "GET", "/responses/#{response_id}"
+
+  -- Delete a stored response
+  delete_response: (response_id) =>
+    assert response_id, "response_id is required"
+    @_request "DELETE", "/responses/#{response_id}"
+
+  -- Cancel an in-progress streaming response
+  cancel_response: (response_id) =>
+    assert response_id, "response_id is required"
+    @_request "POST", "/responses/#{response_id}/cancel"
+
+  -- Create a single response (stateless)
+  -- input: string or array of message objects
+  -- opts: options like model, temperature, instructions, tools, etc.
+  -- stream_callback: optional function for streaming responses
+  -- Returns: status, response, headers (raw result from _request)
+  create_response: (input, opts={}, stream_callback=nil) =>
+    import create_response_stream_filter from require "openai.responses"
+
+    payload = { :input }
+
+    if opts
+      for k, v in pairs opts
+        payload[k] = v
+
+    stream_filter = if payload.stream and stream_callback
+      create_response_stream_filter stream_callback
+
+    @_request "POST", "/responses", payload, nil, stream_filter
+
   -- Responses API methods
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"
@@ -265,9 +304,5 @@ class OpenAI
 
     require @config.http_provider
 
-import responses_methods, ResponseSession from require "openai.responses"
 
-for k, v in pairs responses_methods
-  OpenAI.__base[k] = v
-
-{:OpenAI, :ChatSession, :ResponseSession, :VERSION, new: OpenAI}
+{:OpenAI, :ChatSession, :VERSION, new: OpenAI}

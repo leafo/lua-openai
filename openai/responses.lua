@@ -1,6 +1,7 @@
 local cjson = require("cjson")
 local types
 types = require("tableshape").types
+local DEFAULT_RESPONSES_MODEL = "gpt-4.1-mini"
 local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
 local input_format = types.string + types.array_of(types.partial({
   role = types.one_of({
@@ -43,8 +44,7 @@ local parse_responses_response = types.partial({
   output = types.array_of(response_message):tag("output"),
   model = empty + types.string:tag("model"),
   usage = empty + types.table:tag("usage"),
-  stop_reason = empty + types.string:tag("stop_reason"),
-  stop_sequence = empty + (types.string + empty):tag("stop_sequence")
+  status = empty + types.string:tag("status")
 })
 local parse_response_stream_chunk
 parse_response_stream_chunk = function(chunk)
@@ -160,7 +160,7 @@ create_response_stream_filter = function(chunk_callback)
     return ...
   end
 end
-local ResponseSession
+local ResponsesChatSession
 do
   local _class_0
   local _base_0 = {
@@ -182,23 +182,26 @@ do
       end
       assert(input, "input must be provided")
       assert(input_format(input))
-      local payload = {
-        model = self.opts.model or "gpt-4.1-mini",
-        input = input
+      local merged_opts = {
+        model = self.opts.model,
+        previous_response_id = self.current_response_id
       }
       if self.opts.instructions then
-        payload.instructions = self.opts.instructions
+        merged_opts.instructions = self.opts.instructions
       end
       if opts then
         for k, v in pairs(opts) do
-          payload[k] = v
+          merged_opts[k] = v
         end
+      end
+      if stream_callback then
+        merged_opts.stream = merged_opts.stream or true
       end
       local accumulated_text = { }
       local final_response = nil
-      local stream_filter
-      if payload.stream then
-        stream_filter = create_response_stream_filter(function(chunk)
+      local wrapped_callback
+      if merged_opts.stream then
+        wrapped_callback = function(chunk)
           if chunk.text_delta then
             table.insert(accumulated_text, chunk.text_delta)
           end
@@ -209,21 +212,18 @@ do
           if stream_callback then
             return stream_callback(chunk)
           end
-        end)
+        end
       end
-      local status, response = self.client:_request("POST", "/responses", payload, nil, stream_filter)
+      local status, response = self.client:create_response(input, merged_opts, wrapped_callback)
       if status ~= 200 then
         return nil, "Request failed with status: " .. tostring(status), response
       end
-      if payload.stream then
-        local text_out = table.concat(accumulated_text)
+      if merged_opts.stream then
         if final_response then
           self.current_response_id = final_response.id
           table.insert(self.response_history, final_response)
-        elseif text_out ~= "" then
-          self.current_response_id = "stream_" .. tostring(os.time())
         end
-        return text_out
+        return table.concat(accumulated_text)
       end
       local parsed_response, err = parse_responses_response(response)
       if not (parsed_response) then
@@ -246,7 +246,7 @@ do
       self.current_response_id = self.opts.previous_response_id
     end,
     __base = _base_0,
-    __name = "ResponseSession"
+    __name = "ResponsesChatSession"
   }, {
     __index = _base_0,
     __call = function(cls, ...)
@@ -256,70 +256,13 @@ do
     end
   })
   _base_0.__class = _class_0
-  ResponseSession = _class_0
+  ResponsesChatSession = _class_0
 end
-local responses_methods = {
-  new_response_session = function(self, ...)
-    return ResponseSession(self, ...)
-  end,
-  create_response = function(self, input, opts, stream_callback)
-    if opts == nil then
-      opts = { }
-    end
-    if stream_callback == nil then
-      stream_callback = nil
-    end
-    assert(input, "input must be provided")
-    assert(input_format(input))
-    local payload = {
-      model = "gpt-4.1-mini",
-      input = input
-    }
-    if opts then
-      for k, v in pairs(opts) do
-        payload[k] = v
-      end
-    end
-    local accumulated_text = { }
-    local final_response = nil
-    local stream_filter
-    if payload.stream then
-      stream_filter = create_response_stream_filter(function(chunk)
-        if chunk.text_delta then
-          table.insert(accumulated_text, chunk.text_delta)
-        end
-        if chunk.response then
-          final_response = add_response_helpers(chunk.response)
-          chunk.response = final_response
-        end
-        if stream_callback then
-          return stream_callback(chunk)
-        end
-      end)
-    end
-    local status, response = self:_request("POST", "/responses", payload, nil, stream_filter)
-    if status ~= 200 then
-      return nil, "Request failed with status: " .. tostring(status), response
-    end
-    if payload.stream then
-      if final_response then
-        add_response_helpers(final_response)
-      end
-      return table.concat(accumulated_text)
-    end
-    local parsed_response, err = parse_responses_response(response)
-    if not (parsed_response) then
-      return nil, "Failed to parse response: " .. tostring(err), response
-    end
-    add_response_helpers(parsed_response)
-    return parsed_response
-  end
-}
 return {
-  ResponseSession = ResponseSession,
-  responses_methods = responses_methods,
+  ResponsesChatSession = ResponsesChatSession,
   parse_responses_response = parse_responses_response,
   parse_response_stream_chunk = parse_response_stream_chunk,
+  create_response_stream_filter = create_response_stream_filter,
   add_response_helpers = add_response_helpers,
   extract_output_text = extract_output_text
 }

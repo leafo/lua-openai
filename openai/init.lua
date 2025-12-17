@@ -52,6 +52,11 @@ do
     new_chat_session = function(self, ...)
       return ChatSession(self, ...)
     end,
+    new_response_chat_session = function(self, ...)
+      local ResponsesChatSession
+      ResponsesChatSession = require("openai.responses").ResponsesChatSession
+      return ResponsesChatSession(self, ...)
+    end,
     create_stream_filter = function(self, chunk_callback)
       assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
       local accumulation_buffer = ""
@@ -171,6 +176,41 @@ do
     image_generation = function(self, params)
       return self:_request("POST", "/images/generations", params)
     end,
+    response = function(self, response_id)
+      assert(response_id, "response_id is required")
+      return self:_request("GET", "/responses/" .. tostring(response_id))
+    end,
+    delete_response = function(self, response_id)
+      assert(response_id, "response_id is required")
+      return self:_request("DELETE", "/responses/" .. tostring(response_id))
+    end,
+    cancel_response = function(self, response_id)
+      assert(response_id, "response_id is required")
+      return self:_request("POST", "/responses/" .. tostring(response_id) .. "/cancel")
+    end,
+    create_response = function(self, input, opts, stream_callback)
+      if opts == nil then
+        opts = { }
+      end
+      if stream_callback == nil then
+        stream_callback = nil
+      end
+      local create_response_stream_filter
+      create_response_stream_filter = require("openai.responses").create_response_stream_filter
+      local payload = {
+        input = input
+      }
+      if opts then
+        for k, v in pairs(opts) do
+          payload[k] = v
+        end
+      end
+      local stream_filter
+      if payload.stream and stream_callback then
+        stream_filter = create_response_stream_filter(stream_callback)
+      end
+      return self:_request("POST", "/responses", payload, nil, stream_filter)
+    end,
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")
@@ -250,18 +290,9 @@ do
   _base_0.__class = _class_0
   OpenAI = _class_0
 end
-local responses_methods, ResponseSession
-do
-  local _obj_0 = require("openai.responses")
-  responses_methods, ResponseSession = _obj_0.responses_methods, _obj_0.ResponseSession
-end
-for k, v in pairs(responses_methods) do
-  OpenAI.__base[k] = v
-end
 return {
   OpenAI = OpenAI,
   ChatSession = ChatSession,
-  ResponseSession = ResponseSession,
   VERSION = VERSION,
   new = OpenAI
 }

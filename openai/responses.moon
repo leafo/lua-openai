@@ -1,6 +1,8 @@
 cjson = require "cjson"
 import types from require "tableshape"
 
+DEFAULT_RESPONSES_MODEL = "gpt-4.1-mini"
+
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
 -- Schema for validating input parameter which can be string or array of messages
@@ -46,8 +48,7 @@ parse_responses_response = types.partial {
   output: types.array_of(response_message)\tag "output"
   model: empty + types.string\tag "model"
   usage: empty + types.table\tag "usage"
-  stop_reason: empty + types.string\tag "stop_reason"
-  stop_sequence: empty + (types.string + empty)\tag "stop_sequence"
+  status: empty + types.string\tag "status"
 }
 
 -- Normalize streaming events coming back from the Responses API
@@ -86,7 +87,7 @@ parse_response_stream_chunk = (chunk) ->
       raw: chunk
     }
 
--- Helper function to extract text from response content
+-- helper to extract text from response content as single string
 extract_output_text = (response) ->
   return "" unless response
   parts = {}
@@ -142,9 +143,8 @@ create_response_stream_filter = (chunk_callback) ->
     ...
 
 
-
--- Session class for managing stateful conversations with Responses API
-class ResponseSession
+-- A client side chat session backed by the responses API
+class ResponsesChatSession
   new: (@client, @opts={}) =>
     @response_history = {}
     @current_response_id = @opts.previous_response_id
@@ -166,25 +166,27 @@ class ResponseSession
     assert input, "input must be provided"
     assert input_format input
 
-    payload = {
-      model: @opts.model or "gpt-4.1-mini"
-      :input
+    merged_opts = {
+      model: @opts.model
+      previous_response_id: @current_response_id
     }
 
-    -- Add instructions if provided in session opts
     if @opts.instructions
-      payload.instructions = @opts.instructions
+      merged_opts.instructions = @opts.instructions
 
-    -- Merge additional options
     if opts
       for k, v in pairs opts
-        payload[k] = v
+        merged_opts[k] = v
 
+    if stream_callback
+      merged_opts.stream = merged_opts.stream or true
+
+    -- Track streaming state
     accumulated_text = {}
     final_response = nil
 
-    stream_filter = if payload.stream
-      create_response_stream_filter (chunk) ->
+    wrapped_callback = if merged_opts.stream
+      (chunk) ->
         if chunk.text_delta
           table.insert accumulated_text, chunk.text_delta
 
@@ -195,80 +197,16 @@ class ResponseSession
         if stream_callback
           stream_callback chunk
 
-    status, response = @client\_request "POST", "/responses", payload, nil, stream_filter
+    status, response = @client\create_response input, merged_opts, wrapped_callback
 
     if status != 200
       return nil, "Request failed with status: #{status}", response
 
-    if payload.stream
-      text_out = table.concat accumulated_text
-
+    if merged_opts.stream
       if final_response
         @current_response_id = final_response.id
         table.insert @response_history, final_response
-      elseif text_out != ""
-        @current_response_id = "stream_#{os.time()}"
 
-      return text_out
-
-    -- Parse non-streaming response
-    parsed_response, err = parse_responses_response response
-    unless parsed_response
-      return nil, "Failed to parse response: #{err}", response
-
-    -- Update conversation state
-    add_response_helpers parsed_response
-    @current_response_id = parsed_response.id
-    table.insert @response_history, parsed_response
-
-    parsed_response
-
--- Add Responses API methods to the main OpenAI class
-responses_methods = {
-  -- Create a new response session for stateful conversations
-  new_response_session: (...) =>
-    ResponseSession @, ...
-
-  -- Create a single response (stateless)
-  -- input: string or array of message objects
-  -- opts: options like model, temperature, instructions, tools, etc.
-  -- stream_callback: optional function for streaming responses
-  create_response: (input, opts={}, stream_callback=nil) =>
-    assert input, "input must be provided"
-    assert input_format input
-
-    payload = {
-      model: "gpt-4.1-mini"
-      :input
-    }
-
-    if opts
-      for k, v in pairs opts
-        payload[k] = v
-
-    accumulated_text = {}
-    final_response = nil
-
-    stream_filter = if payload.stream
-      create_response_stream_filter (chunk) ->
-        if chunk.text_delta
-          table.insert accumulated_text, chunk.text_delta
-
-        if chunk.response
-          final_response = add_response_helpers chunk.response
-          chunk.response = final_response
-
-        if stream_callback
-          stream_callback chunk
-
-    status, response = @_request "POST", "/responses", payload, nil, stream_filter
-
-    if status != 200
-      return nil, "Request failed with status: #{status}", response
-
-    if payload.stream
-      if final_response
-        add_response_helpers final_response
       return table.concat accumulated_text
 
     parsed_response, err = parse_responses_response response
@@ -276,15 +214,16 @@ responses_methods = {
       return nil, "Failed to parse response: #{err}", response
 
     add_response_helpers parsed_response
+    @current_response_id = parsed_response.id
+    table.insert @response_history, parsed_response
+
     parsed_response
 
-}
-
 {
-  :ResponseSession
-  :responses_methods
+  :ResponsesChatSession
   :parse_responses_response
   :parse_response_stream_chunk
+  :create_response_stream_filter
   :add_response_helpers
   :extract_output_text
 }
