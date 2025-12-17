@@ -6,63 +6,9 @@ cjson = require "cjson"
 unpack = table.unpack or unpack
 
 import types from require "tableshape"
-import ChatSession, test_message from require "openai.chat_session"
 
 parse_url = require("socket.url").parse
 
--- {
---   "id": "chatcmpl-XXX",
---   "object": "chat.completion.chunk",
---   "created": 1682979397,
---   "model": "gpt-3.5-turbo-0301",
---   "choices": [
---     {
---       "delta": {
---         "content": " hello"
---       },
---       "index": 0,
---       "finish_reason": null
---     }
---   ]
--- }
-
-
-parse_completion_chunk = types.partial {
-  object: "chat.completion.chunk"
-  -- not sure of the whole range of chunks, so for now we strictly parse an append
-  choices: types.shape {
-    types.partial {
-      delta: types.partial {
-        "content": types.string\tag "content"
-      }
-      index: types.number\tag "index"
-    }
-  }
-}
-
--- lpeg pattern to read a json data block from the front of a string, returns
--- the json blob and the rest of the string if it could parse one
-consume_json_head = do
-  import C, S, P from require "lpeg"
-
-  -- this pattern reads from the front just enough characters to consume a
-  -- valid json object
-  consume_json = P (str, pos) ->
-    str_len = #str
-    for k=pos+1,str_len
-      candidate = str\sub pos, k
-      parsed = false
-      pcall -> parsed = cjson.decode candidate
-      if parsed
-        return k + 1
-
-    return nil -- fail
-
-  S("\t\n\r ")^0 * P("data: ") * C(consume_json) * C(P(1)^0)
-
-
--- handles appending response for each call to chat
--- TODO: hadle appending the streaming response to the output
 class OpenAI
   api_base: "https://api.openai.com/v1"
   default_model: "gpt-4.1"
@@ -78,41 +24,19 @@ class OpenAI
         @config[k] = v
 
   new_chat_session: (...) =>
+    import ChatSession from require "openai.chat_completions"
     ChatSession @, ...
 
   new_response_chat_session: (...) =>
     import ResponsesChatSession from require "openai.responses"
     ResponsesChatSession @, ...
 
-  -- creates a ltn12 compatible filter function that will call chunk_callback
-  -- for each parsed json chunk from the server-sent events api response
-  create_stream_filter: (chunk_callback) =>
-    assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
-
-    accumulation_buffer = ""
-
-    (...) ->
-      chunk = ...
-
-      if type(chunk) == "string"
-        accumulation_buffer ..= chunk
-
-        while true
-          json_blob, rest = consume_json_head\match accumulation_buffer
-          unless json_blob
-            break
-
-          accumulation_buffer = rest
-          if chunk = parse_completion_chunk cjson.decode json_blob
-            chunk_callback chunk
-
-      ...
-
-
   -- call /chat/completions
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/chat, eg. model, temperature, etc.
   -- completion_callback: function to be called for parsed streaming output when stream = true is passed to opts
   chat: (messages, opts, chunk_callback=nil) =>
+    import test_message, create_chat_stream_filter from require "openai.chat_completions"
+
     test_messages = types.array_of test_message
     assert test_messages messages
 
@@ -126,7 +50,7 @@ class OpenAI
         payload[k] = v
 
     stream_filter = if payload.stream
-      @create_stream_filter chunk_callback
+      create_chat_stream_filter chunk_callback
 
     @_request "POST", "/chat/completions", payload, nil, stream_filter
 
@@ -309,4 +233,4 @@ class OpenAI
     require @config.http_provider
 
 
-{:OpenAI, :ChatSession, :VERSION, new: OpenAI}
+{:OpenAI, :VERSION, new: OpenAI}

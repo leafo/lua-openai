@@ -65,6 +65,65 @@ local parse_error_message = types.partial({
     code = empty + types.string:tag("code")
   })
 })
+local parse_completion_chunk = types.partial({
+  object = "chat.completion.chunk",
+  choices = types.shape({
+    types.partial({
+      delta = types.partial({
+        ["content"] = types.string:tag("content")
+      }),
+      index = types.number:tag("index")
+    })
+  })
+})
+local consume_json_head
+do
+  local C, S, P
+  do
+    local _obj_0 = require("lpeg")
+    C, S, P = _obj_0.C, _obj_0.S, _obj_0.P
+  end
+  local consume_json = P(function(str, pos)
+    local str_len = #str
+    for k = pos + 1, str_len do
+      local candidate = str:sub(pos, k)
+      local parsed = false
+      pcall(function()
+        parsed = cjson.decode(candidate)
+      end)
+      if parsed then
+        return k + 1
+      end
+    end
+    return nil
+  end)
+  consume_json_head = S("\t\n\r ") ^ 0 * P("data: ") * C(consume_json) * C(P(1) ^ 0)
+end
+local create_chat_stream_filter
+create_chat_stream_filter = function(chunk_callback)
+  assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
+  local accumulation_buffer = ""
+  return function(...)
+    local chunk = ...
+    if type(chunk) == "string" then
+      accumulation_buffer = accumulation_buffer .. chunk
+      while true do
+        local json_blob, rest = consume_json_head:match(accumulation_buffer)
+        if not (json_blob) then
+          break
+        end
+        accumulation_buffer = rest
+        do
+          chunk = parse_completion_chunk(cjson.decode(json_blob))
+          if chunk then
+            chunk_callback(chunk)
+          end
+        end
+      end
+    end
+    return ...
+  end
+end
 local ChatSession
 do
   local _class_0
@@ -125,7 +184,7 @@ do
       if stream_callback then
         assert(type(response) == "string", "Expected string response from streaming output")
         local parts = { }
-        local f = self.client:create_stream_filter(function(c)
+        local f = create_chat_stream_filter(function(c)
           return table.insert(parts, c.content)
         end)
         f(response)
@@ -185,5 +244,11 @@ do
 end
 return {
   ChatSession = ChatSession,
-  test_message = test_message
+  test_message = test_message,
+  test_function = test_function,
+  parse_chat_response = parse_chat_response,
+  parse_error_message = parse_error_message,
+  parse_completion_chunk = parse_completion_chunk,
+  consume_json_head = consume_json_head,
+  create_chat_stream_filter = create_chat_stream_filter
 }

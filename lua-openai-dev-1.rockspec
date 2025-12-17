@@ -24,7 +24,7 @@ build = {
    type = "builtin",
    modules = {
       ["openai"] = "openai/init.lua",
-      ["openai.chat_session"] = "openai/chat_session.lua",
+      ["openai.chat_completions"] = "openai/chat_completions.lua",
       ["openai.responses"] = "openai/responses.lua"
    }
 }
