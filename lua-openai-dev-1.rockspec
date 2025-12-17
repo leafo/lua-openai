@@ -25,6 +25,7 @@ build = {
    modules = {
       ["openai"] = "openai/init.lua",
       ["openai.chat_completions"] = "openai/chat_completions.lua",
-      ["openai.responses"] = "openai/responses.lua"
+      ["openai.responses"] = "openai/responses.lua",
+      ["openai.compat.gemini"] = "openai/compat/gemini.lua"
    }
 }
