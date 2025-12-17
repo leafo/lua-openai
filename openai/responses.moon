@@ -19,6 +19,16 @@ response_mt = {
             table.insert parts, item.text
 
       table.concat parts
+
+    -- extract generated images from a response with image_generation tool
+    -- returns array of tables with {b64_json: string} for each generated image
+    get_images: =>
+      images = {}
+      if @output
+        for block in *@output
+          if block.type == "image_generation_call" and block.result
+            table.insert images, { b64_json: block.result }
+      images
   }
   __tostring: => @get_output_text!
 }
@@ -184,6 +194,9 @@ class ResponsesChatSession
 
     if @opts.instructions
       merged_opts.instructions = @opts.instructions
+
+    if @opts.tools
+      merged_opts.tools = @opts.tools
 
     if opts
       for k, v in pairs opts

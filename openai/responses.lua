@@ -29,6 +29,21 @@ local response_mt = {
         end
       end
       return table.concat(parts)
+    end,
+    get_images = function(self)
+      local images = { }
+      if self.output then
+        local _list_0 = self.output
+        for _index_0 = 1, #_list_0 do
+          local block = _list_0[_index_0]
+          if block.type == "image_generation_call" and block.result then
+            table.insert(images, {
+              b64_json = block.result
+            })
+          end
+        end
+      end
+      return images
     end
   },
   __tostring = function(self)
@@ -213,6 +228,9 @@ do
       }
       if self.opts.instructions then
         merged_opts.instructions = self.opts.instructions
+      end
+      if self.opts.tools then
+        merged_opts.tools = self.opts.tools
       end
       if opts then
         for k, v in pairs(opts) do
