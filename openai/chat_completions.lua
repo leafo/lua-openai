@@ -1,3 +1,4 @@
+local unpack = table.unpack or unpack
 local cjson = require("cjson")
 local types
 types = require("tableshape").types

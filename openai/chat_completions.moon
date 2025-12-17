@@ -1,5 +1,7 @@
 -- This is the legacy API https://platform.openai.com/docs/api-reference/chat
 
+unpack = table.unpack or unpack
+
 cjson = require "cjson"
 import types from require "tableshape"
 
