@@ -5,6 +5,8 @@ API](https://platform.openai.com/docs/api-reference) for Lua. Compatible with
 any HTTP library that supports LuaSocket's http request interface. Compatible
 with OpenResty using
 [`lapis.nginx.http`](https://leafo.net/lapis/reference/utilities.html#making-http-requests).
+This project implements both the classic Chat Completions API in addition to
+the modern Responses API.
 
 <details>
 <summary>AI Generated Disclaimer</summary>
@@ -64,7 +66,6 @@ if status == 200 then
 end
 ```
 
-
 ## Chat Session Example
 
 A chat session instance can be created to simplify managing the state of a back
@@ -103,93 +104,6 @@ local response = chat:send("What's the most boring color?", function(chunk)
 end)
 ```
 
-## Chat Session With Functions
-
-OpenAI allows [sending a list of function
-declarations](https://openai.com/blog/function-calling-and-other-api-updates)
-that the LLM can decide to call based on the prompt. The function calling
-interface must be used with chat completions and the `gpt-4-0613` or
-`gpt-3.5-turbo-0613` models or later.
-
-> See <https://github.com/leafo/lua-openai/blob/main/examples/example5.lua> for
-> a full example that implements basic math functions to compute the standard
-> deviation of a list of numbers
-
-Here's a quick example of how to use functions in a chat exchange. First you
-will need to create a chat session with the `functions` option containing an
-array of available functions.
-
-> The functions are stored on the `functions` field on the chat object. If the
-> functions need to be adjusted for future message, the field can be modified.
-
-```lua
-local chat = openai:new_chat_session({
-  model = "gpt-3.5-turbo-0613",
-  functions = {
-    {
-      name = "add",
-      description =  "Add two numbers together",
-      parameters = {
-        type = "object",
-        properties = {
-          a = { type = "number" },
-          b = { type = "number" }
-        }
-      }
-    }
-  }
-})
-```
-
-Any prompt you send will be aware of all available functions, and may request
-any of them to be called. If the response contains a function call request,
-then an object will be returned instead of the standard string return value.
-
-```lua
-local res = chat:send("Using the provided function, calculate the sum of 2923 + 20839")
-
-if type(res) == "table" and res.function_call then
-  -- The function_call object has the following fields:
-  --   function_call.name --> name of function to be called
-  --   function_call.arguments --> A string in JSON format that should match the parameter specification
-  -- Note that res may also include a content field if the LLM produced a textual output as well
-
-  local cjson = require "cjson"
-  local name = res.function_call.name
-  local arguments = cjson.decode(res.function_call.arguments)
-  -- ... compute the result and send it back ...
-end
-```
-
-You can evaluate the requested function & arguments and send the result back to
-the client so it can resume operation with a `role=function` message object:
-
-> Since the LLM can hallucinate every part of the function call, you'll want to
-> do robust type validation to ensure that function name and arguments match
-> what you expect. Assume every stage can fail, including receiving malformed
-> JSON for the arguments.
-
-```lua
-local name, arguments = ... -- the name and arguments extracted from above
-
-if name == "add" then
-  local value = arguments.a + arguments.b
-
-  -- send the response back to the chat bot using a `role = function` message
-
-  local cjson = require "cjson"
-
-  local res = chat:send({
-    role = "function",
-    name = name,
-    content = cjson.encode(value)
-  })
-
-  print(res) -- Print the final output
-else
-  error("Unknown function: " .. name)
-end
-```
 
 ## Streaming Response Example
 
@@ -197,6 +111,30 @@ Under normal circumstances the API will wait until the entire response is
 available before returning the response. Depending on the prompt this may take
 some time. The streaming API can be used to read the output one chunk at a
 time, allowing you to display content in real time as it is generated.
+
+Using the Responses API:
+
+```lua
+local openai = require("openai")
+local client = openai.new(os.getenv("OPENAI_API_KEY"))
+
+client:create_response({
+  {role = "system", content = "You work for Streak.Club, a website to track daily creative habits"},
+  {role = "user", content = "Who do you work for?"}
+}, {
+  stream = true
+}, function(chunk)
+  if chunk.text_delta then
+    io.stdout:write(chunk.text_delta)
+    io.stdout:flush()
+  end
+end)
+
+print() -- print a newline
+```
+
+Using the Chat Completions API:
+
 
 ```lua
 local openai = require("openai")
@@ -455,3 +393,98 @@ and the raw request response.
 - `stream_callback`: (optional) A function to enable streaming output.
 
 See `chat:send` for details on the `stream_callback`
+
+
+## Appendix
+
+### Chat Session With Functions
+
+> Note: Functions are the legacy format for what is now known as tools, this
+> example is left here just as a reference
+
+OpenAI allows [sending a list of function
+declarations](https://openai.com/blog/function-calling-and-other-api-updates)
+that the LLM can decide to call based on the prompt. The function calling
+interface must be used with chat completions and the `gpt-4-0613` or
+`gpt-3.5-turbo-0613` models or later.
+
+> See <https://github.com/leafo/lua-openai/blob/main/examples/example5.lua> for
+> a full example that implements basic math functions to compute the standard
+> deviation of a list of numbers
+
+Here's a quick example of how to use functions in a chat exchange. First you
+will need to create a chat session with the `functions` option containing an
+array of available functions.
+
+> The functions are stored on the `functions` field on the chat object. If the
+> functions need to be adjusted for future message, the field can be modified.
+
+```lua
+local chat = openai:new_chat_session({
+  model = "gpt-3.5-turbo-0613",
+  functions = {
+    {
+      name = "add",
+      description =  "Add two numbers together",
+      parameters = {
+        type = "object",
+        properties = {
+          a = { type = "number" },
+          b = { type = "number" }
+        }
+      }
+    }
+  }
+})
+```
+
+Any prompt you send will be aware of all available functions, and may request
+any of them to be called. If the response contains a function call request,
+then an object will be returned instead of the standard string return value.
+
+```lua
+local res = chat:send("Using the provided function, calculate the sum of 2923 + 20839")
+
+if type(res) == "table" and res.function_call then
+  -- The function_call object has the following fields:
+  --   function_call.name --> name of function to be called
+  --   function_call.arguments --> A string in JSON format that should match the parameter specification
+  -- Note that res may also include a content field if the LLM produced a textual output as well
+
+  local cjson = require "cjson"
+  local name = res.function_call.name
+  local arguments = cjson.decode(res.function_call.arguments)
+  -- ... compute the result and send it back ...
+end
+```
+
+You can evaluate the requested function & arguments and send the result back to
+the client so it can resume operation with a `role=function` message object:
+
+> Since the LLM can hallucinate every part of the function call, you'll want to
+> do robust type validation to ensure that function name and arguments match
+> what you expect. Assume every stage can fail, including receiving malformed
+> JSON for the arguments.
+
+```lua
+local name, arguments = ... -- the name and arguments extracted from above
+
+if name == "add" then
+  local value = arguments.a + arguments.b
+
+  -- send the response back to the chat bot using a `role = function` message
+
+  local cjson = require "cjson"
+
+  local res = chat:send({
+    role = "function",
+    name = name,
+    content = cjson.encode(value)
+  })
+
+  print(res) -- Print the final output
+else
+  error("Unknown function: " .. name)
+end
+```
+
