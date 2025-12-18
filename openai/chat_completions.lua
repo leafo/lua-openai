@@ -114,12 +114,7 @@ create_chat_stream_filter = function(chunk_callback)
           break
         end
         accumulation_buffer = rest
-        do
-          chunk = parse_completion_chunk(cjson.decode(json_blob))
-          if chunk then
-            chunk_callback(chunk)
-          end
-        end
+        chunk_callback(cjson.decode(json_blob))
       end
     end
     return ...
@@ -159,7 +154,7 @@ do
       if stream_callback == nil then
         stream_callback = nil
       end
-      local status, response = self.client:create_chat_completion(self.messages, {
+      local status, response = self.client:chat(self.messages, {
         function_call = self.opts.function_call,
         functions = self.functions,
         model = self.opts.model,
@@ -186,7 +181,12 @@ do
         assert(type(response) == "string", "Expected string response from streaming output")
         local parts = { }
         local f = create_chat_stream_filter(function(c)
-          return table.insert(parts, c.content)
+          do
+            local parsed = parse_completion_chunk(c)
+            if parsed then
+              return table.insert(parts, parsed.content)
+            end
+          end
         end)
         f(response)
         local message = {
@@ -253,5 +253,6 @@ end
 return {
   ChatSession = ChatSession,
   test_message = test_message,
-  create_chat_stream_filter = create_chat_stream_filter
+  create_chat_stream_filter = create_chat_stream_filter,
+  parse_completion_chunk = parse_completion_chunk
 }

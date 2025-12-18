@@ -50,8 +50,26 @@ do
       end
       return self:_request("POST", "/chat/completions", payload, nil, stream_filter)
     end,
-    chat = function(self, ...)
-      return self:create_chat_completion(...)
+    chat = function(self, messages, opts, chunk_callback)
+      if chunk_callback == nil then
+        chunk_callback = nil
+      end
+      do
+        local cb = chunk_callback
+        if cb then
+          local parse_completion_chunk
+          parse_completion_chunk = require("openai.chat_completions").parse_completion_chunk
+          chunk_callback = function(chunk)
+            do
+              local delta = parse_completion_chunk(chunk)
+              if delta then
+                return cb(delta)
+              end
+            end
+          end
+        end
+      end
+      return self:create_chat_completion(messages, opts, chunk_callback)
     end,
     completion = function(self, prompt, opts)
       local payload = {

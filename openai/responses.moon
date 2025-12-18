@@ -130,8 +130,9 @@ parse_response_stream_chunk = (chunk) ->
       raw: chunk
     }
 
--- takes a stream of string chunks and extracts SSE json objects out of the
--- stream, calling chunk_callback when a parsed object is found
+
+-- creates a ltn12 compatible filter function that will call chunk_callback
+-- for each parsed json chunk from the server-sent events api response
 create_response_stream_filter = (chunk_callback) ->
   assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
 

@@ -58,7 +58,17 @@ class OpenAI
     @_request "POST", "/chat/completions", payload, nil, stream_filter
 
   -- legacy alias for create_chat_completion (for backward compatibility)
-  chat: (...) => @create_chat_completion ...
+  -- the legacy method also has the filtered chunk responses instead of pushing
+  -- through every event through the callback
+  chat: (messages, opts, chunk_callback=nil) =>
+    if cb = chunk_callback
+      import parse_completion_chunk from require "openai.chat_completions"
+      chunk_callback = (chunk) ->
+        -- filter chunk to only pass through chat.completion.chunk with parsed delta
+        if delta = parse_completion_chunk chunk
+          cb delta
+
+    @create_chat_completion messages, opts, chunk_callback
 
   -- call /completions
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/completions

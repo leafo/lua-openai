@@ -402,6 +402,25 @@ describe "OpenAI API Client", ->
 
       assert.same "This is a chat response.", response
 
+    it "processes streaming chunks with create_chat_completion (raw)", ->
+      client = OpenAI "test-api-key"
+
+      chunks_received = {}
+      stream_callback = (chunk) ->
+        table.insert chunks_received, chunk
+
+      status, response = client\create_chat_completion {
+        {role: "user", content: "tell me a joke"}
+      }, {stream: true}, stream_callback
+
+      assert.same 200, status
+      -- create_chat_completion passes raw JSON chunks
+      assert.same {
+        {object: "chat.completion.chunk", choices: {{delta: {content: "This is "}, index: 0}}}
+        {object: "chat.completion.chunk", choices: {{delta: {content: "a chat "}, index: 1}}}
+        {object: "chat.completion.chunk", choices: {{delta: {content: "response."}, index: 2}}}
+      }, chunks_received
+
   describe "responses", ->
     it "creates a response (raw API)", ->
       client = OpenAI "test-api-key"

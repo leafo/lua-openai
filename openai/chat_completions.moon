@@ -140,8 +140,9 @@ create_chat_stream_filter = (chunk_callback) ->
           break
 
         accumulation_buffer = rest
-        if chunk = parse_completion_chunk cjson.decode json_blob
-          chunk_callback chunk
+        chunk_callback cjson.decode json_blob
+        -- if chunk = parse_completion_chunk cjson.decode json_blob
+        --   chunk_callback chunk
 
     ...
 
@@ -186,7 +187,7 @@ class ChatSession
   -- append_response: should the response be appended to the chat history
   -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
   generate_response: (append_response=true, stream_callback=nil) =>
-    status, response = @client\create_chat_completion @messages, {
+    status, response = @client\chat @messages, {
       function_call: @opts.function_call -- override the default function call behavior
       functions: @functions
       model: @opts.model
@@ -214,7 +215,8 @@ class ChatSession
 
       parts = {}
       f = create_chat_stream_filter (c) ->
-        table.insert parts, c.content
+        if parsed = parse_completion_chunk c
+          table.insert parts, parsed.content
 
       f response
       message = {
@@ -250,4 +252,5 @@ class ChatSession
   :ChatSession
   :test_message
   :create_chat_stream_filter
+  :parse_completion_chunk
 }
