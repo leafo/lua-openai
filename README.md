@@ -24,6 +24,28 @@ luarocks install lua-openai
 
 ## Quick Usage
 
+Using the Responses API:
+
+```lua
+local openai = require("openai")
+local client = openai.new(os.getenv("OPENAI_API_KEY"))
+
+local status, response = client:create_response({
+  {role = "system", content = "You are a Lua programmer"},
+  {role = "user", content = "Write a 'Hello world' program in Lua"}
+}, {
+  model = "gpt-4.1",
+  temperature = 0.5
+})
+
+if status == 200 then
+  -- the JSON response is automatically parsed into a Lua object
+  print(response.output[1].content[1].text)
+end
+```
+
+Using the Chat Completions API:
+
 ```lua
 local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
@@ -42,12 +64,14 @@ if status == 200 then
 end
 ```
 
+
 ## Chat Session Example
 
 A chat session instance can be created to simplify managing the state of a back
-and forth conversation with the ChatGPT API. Note that chat state is stored
-locally in memory, each new message is appended to the list of messages, and
-the output is automatically appended to the list for the next request.
+and forth conversation with the ChatGPT Chat Completions API. Note that chat
+state is stored locally in memory, each new message is appended to the list of
+messages, and the output is automatically appended to the list for the next
+request.
 
 ```lua
 local openai = require("openai")
