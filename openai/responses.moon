@@ -130,8 +130,8 @@ parse_response_stream_chunk = (chunk) ->
       raw: chunk
     }
 
-
--- Wraps a chunk callback to handle streaming chunked response from server
+-- takes a stream of string chunks and extracts SSE json objects out of the
+-- stream, calling chunk_callback when a parsed object is found
 create_response_stream_filter = (chunk_callback) ->
   assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
 
@@ -245,7 +245,5 @@ class ResponsesChatSession
 
 {
   :ResponsesChatSession
-  :parse_responses_response
-  :parse_response_stream_chunk
   :create_response_stream_filter
 }

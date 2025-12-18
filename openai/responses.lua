@@ -303,7 +303,5 @@ do
 end
 return {
   ResponsesChatSession = ResponsesChatSession,
-  parse_responses_response = parse_responses_response,
-  parse_response_stream_chunk = parse_response_stream_chunk,
   create_response_stream_filter = create_response_stream_filter
 }
