@@ -1,7 +1,7 @@
 local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
-local status, response = client:chat({
+local status, response = client:create_chat_completion({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {

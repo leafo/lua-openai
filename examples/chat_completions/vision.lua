@@ -3,7 +3,7 @@
 local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
-local status, response = client:chat({
+local status, response = client:create_chat_completion({
   {
     role = "user",
     content = {
