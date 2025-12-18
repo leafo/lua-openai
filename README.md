@@ -222,7 +222,7 @@ The `openai` module returns a table with the following fields:
 - `OpenAI`: A client for sending requests to the OpenAI API.
 - `new`: An alias to `OpenAI` to create a new instance of the OpenAI client
 - `ChatSession`: A class for managing chat sessions and history with the OpenAI API.
-- `VERSION = "1.1.0"`: The current version of the library
+- `VERSION = "1.5.0"`: The current version of the library
 
 ### Classes
 
@@ -236,7 +236,7 @@ Constructor for the OpenAI client.
 
 - `api_key`: Your OpenAI API key.
 - `config`: An optional table of configuration options, with the following shape:
-  - `http_provider`: A string specifying the HTTP module name used for requests, or `nil`. If not provided, the library will automatically use "lapis.nginx.http" in an ngx environment, or "ssl.https" otherwise.
+  - `http_provider`: A string specifying the HTTP module name used for requests, or `nil`. If not provided, the library will automatically use "lapis.nginx.http" in an ngx environment, or "socket.http" otherwise.
 
 ```lua
 local openai = require("openai")
@@ -250,6 +250,18 @@ Creates a new [ChatSession](#chatsession) instance. A chat session is an
 abstraction over the chat completions API that stores the chat history. You can
 append new messages to the history and request completions to be generated from
 it. By default, the completion is appended to the history.
+
+##### `client:new_responses_chat_session(...)`
+
+Creates a new ResponsesChatSession instance for the Responses API. Similar to
+ChatSession but uses OpenAI's Responses API which handles conversation state
+server-side via `previous_response_id`.
+
+- `opts`: Optional configuration table
+  - `model`: Model to use (defaults to client's default_model)
+  - `instructions`: System instructions for the conversation
+  - `tools`: Array of tool definitions
+  - `previous_response_id`: Resume from a previous response
 
 ##### `client:chat(messages, opts, chunk_callback)`
 
@@ -281,6 +293,86 @@ Sends a request to the `/embeddings` endpoint.
 
 Returns HTTP status, response object, and output headers. The response object
 will be decoded from JSON if possible, otherwise the raw string is returned.
+
+##### `client:create_response(input, opts, stream_callback)`
+
+Sends a request to the `/responses` endpoint (Responses API).
+
+- `input`: A string or array of message objects (with `role` and `content` fields)
+- `opts`: Additional options passed directly to the API (eg. model, temperature, instructions, tools, previous_response_id, etc.) https://platform.openai.com/docs/api-reference/responses
+- `stream_callback`: Optional function called for each parsed chunk when `stream = true` is passed in opts
+
+Returns HTTP status, response object, and output headers. The response object
+will be decoded from JSON if possible, otherwise the raw string is returned.
+
+##### `client:response(response_id)`
+
+Retrieves a stored response by ID from the `/responses/{id}` endpoint.
+
+- `response_id`: The ID of the response to retrieve
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:delete_response(response_id)`
+
+Deletes a stored response.
+
+- `response_id`: The ID of the response to delete
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:cancel_response(response_id)`
+
+Cancels an in-progress streaming response.
+
+- `response_id`: The ID of the response to cancel
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:moderation(input, opts)`
+
+Sends a request to the `/moderations` endpoint to check content against OpenAI's content policy.
+
+- `input`: A string or array of strings to classify
+- `opts`: Additional options passed directly to the API
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:models()`
+
+Lists available models from the `/models` endpoint.
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:files()`
+
+Lists uploaded files from the `/files` endpoint.
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:file(file_id)`
+
+Retrieves information about a specific file.
+
+- `file_id`: The ID of the file to retrieve
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:delete_file(file_id)`
+
+Deletes a file.
+
+- `file_id`: The ID of the file to delete
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:image_generation(params)`
+
+Sends a request to the `/images/generations` endpoint to generate images.
+
+- `params`: Parameters for image generation (prompt, n, size, etc.) https://platform.openai.com/docs/api-reference/images/create
+
+Returns HTTP status, response object, and output headers.
 
 #### ChatSession
 
