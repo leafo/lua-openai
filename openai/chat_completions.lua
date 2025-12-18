@@ -159,7 +159,7 @@ do
       if stream_callback == nil then
         stream_callback = nil
       end
-      local status, response = self.client:chat(self.messages, {
+      local status, response = self.client:create_chat_completion(self.messages, {
         function_call = self.opts.function_call,
         functions = self.functions,
         model = self.opts.model,

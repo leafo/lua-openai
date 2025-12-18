@@ -24,7 +24,7 @@ do
       ResponsesChatSession = require("openai.responses").ResponsesChatSession
       return ResponsesChatSession(self, ...)
     end,
-    chat = function(self, messages, opts, chunk_callback)
+    create_chat_completion = function(self, messages, opts, chunk_callback)
       if chunk_callback == nil then
         chunk_callback = nil
       end
@@ -49,6 +49,9 @@ do
         stream_filter = create_chat_stream_filter(chunk_callback)
       end
       return self:_request("POST", "/chat/completions", payload, nil, stream_filter)
+    end,
+    chat = function(self, ...)
+      return self:create_chat_completion(...)
     end,
     completion = function(self, prompt, opts)
       local payload = {

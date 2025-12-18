@@ -186,7 +186,7 @@ class ChatSession
   -- append_response: should the response be appended to the chat history
   -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
   generate_response: (append_response=true, stream_callback=nil) =>
-    status, response = @client\chat @messages, {
+    status, response = @client\create_chat_completion @messages, {
       function_call: @opts.function_call -- override the default function call behavior
       functions: @functions
       model: @opts.model

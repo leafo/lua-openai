@@ -52,11 +52,11 @@ Using the Chat Completions API:
 local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
-local status, response = client:chat({
+local status, response = client:create_chat_completion({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-3.5-turbo", -- this is the default model
+  model = "gpt-3.5-turbo",
   temperature = 0.5
 })
 
@@ -140,7 +140,7 @@ Using the Chat Completions API:
 local openai = require("openai")
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
-client:chat({
+client:create_chat_completion({
   {role = "system", content = "You work for Streak.Club, a website to track daily creative habits"},
   {role = "user", content = "Who do you work for?"}
 }, {
@@ -201,9 +201,9 @@ server-side via `previous_response_id`.
   - `tools`: Array of tool definitions
   - `previous_response_id`: Resume from a previous response
 
-##### `client:chat(messages, opts, chunk_callback)`
+##### `client:create_chat_completion(messages, opts, chunk_callback)`
 
-Sends a request to the `/chat/completions` endpoint.
+Sends a request to the `/chat/completions` endpoint. Also available as `client:chat(...)` for backward compatibility.
 
 - `messages`: An array of message objects.
 - `opts`: Additional options for the chat, passed directly to the API (eg. model, temperature, etc.) https://platform.openai.com/docs/api-reference/chat
