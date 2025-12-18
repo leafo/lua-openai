@@ -249,10 +249,5 @@ class ChatSession
 {
   :ChatSession
   :test_message
-  :test_function
-  :parse_chat_response
-  :parse_error_message
-  :parse_completion_chunk
-  :consume_json_head
   :create_chat_stream_filter
 }
