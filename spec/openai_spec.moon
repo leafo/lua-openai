@@ -588,10 +588,10 @@ describe "OpenAI API Client", ->
       -- Raw API returns the concatenated SSE data
       assert.truthy response
 
-      -- Stream callback received parsed chunks
+      -- Stream callback received raw event objects
       assert.same 3, #received
-      assert.same "Hello", received[1].text_delta
-      assert.same " world", received[2].text_delta
+      assert.same {type: "response.output_text.delta", delta: "Hello"}, received[1]
+      assert.same {type: "response.output_text.delta", delta: " world"}, received[2]
       assert.same "response.completed", received[3].type
 
     it "streams response deltas via session", ->
@@ -612,12 +612,8 @@ describe "OpenAI API Client", ->
         200, table.concat chunks
 
       received = {}
-      stream_callback = (chunk) ->
-        table.insert received, chunk
-
-        if chunk.response
-          assert.same "resp_stream", chunk.response.id
-          assert.same "Hello world", chunk.response\get_output_text!
+      stream_callback = (delta, raw) ->
+        table.insert received, {delta, raw}
 
       session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
       out = assert session\send "Say hello back", stream_callback
@@ -625,20 +621,8 @@ describe "OpenAI API Client", ->
       -- Session returns accumulated text
       assert.same "Hello world", out
 
+      -- Callback receives delta string and raw event object
       assert.same {
-        { type: "response.output_text.delta", text_delta: "Hello", raw: { type: "response.output_text.delta", delta: "Hello" } }
-        { type: "response.output_text.delta", text_delta: " world", raw: { type: "response.output_text.delta", delta: " world" } }
-        { type: "response.completed", response: {
-            id: "resp_stream"
-            object: "response"
-            output: {
-              {
-                type: "message"
-                role: "assistant"
-                content: {
-                  { type: "output_text", text: "Hello world" }
-                }
-              }
-            }
-          }}
+        {"Hello", {type: "response.output_text.delta", delta: "Hello"}}
+        {" world", {type: "response.output_text.delta", delta: " world"}}
       }, received

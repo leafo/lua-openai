@@ -124,45 +124,6 @@ local parse_responses_response = types.partial({
   usage = empty + types.table:tag("usage"),
   status = empty + types.string:tag("status")
 })
-local parse_response_stream_chunk
-parse_response_stream_chunk = function(chunk)
-  if not (type(chunk) == "table") then
-    return 
-  end
-  if not (chunk.type) then
-    return 
-  end
-  if chunk.type == "response.output_text.delta" and type(chunk.delta) == "string" then
-    return {
-      type = chunk.type,
-      text_delta = chunk.delta,
-      raw = chunk
-    }
-  end
-  if chunk.type == "response.completed" and type(chunk.response) == "table" then
-    local parsed, err = parse_responses_response(chunk.response)
-    if parsed then
-      chunk.response = parsed
-      return chunk
-    else
-      return nil, err
-    end
-  end
-  if chunk.delta and type(chunk.delta.text) == "string" then
-    return {
-      type = chunk.type,
-      text_delta = chunk.delta.text,
-      raw = chunk
-    }
-  end
-  if chunk.content_block_delta and type(chunk.content_block_delta.text) == "string" then
-    return {
-      type = chunk.type,
-      text_delta = chunk.content_block_delta.text,
-      raw = chunk
-    }
-  end
-end
 local create_response_stream_filter
 create_response_stream_filter = function(chunk_callback)
   assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
@@ -186,12 +147,7 @@ create_response_stream_filter = function(chunk_callback)
               return cjson.decode(json_data)
             end)
             if success then
-              do
-                local chunk_data = parse_response_stream_chunk(parsed)
-                if chunk_data then
-                  chunk_callback(chunk_data)
-                end
-              end
+              chunk_callback(parsed)
             end
           end
         end
@@ -245,15 +201,20 @@ do
       local wrapped_callback
       if merged_opts.stream then
         wrapped_callback = function(chunk)
-          if chunk.text_delta then
-            table.insert(accumulated_text, chunk.text_delta)
-          end
-          if chunk.response then
-            add_response_helpers(chunk.response)
-            final_response = chunk.response
-          end
-          if stream_callback then
-            return stream_callback(chunk)
+          local _exp_0 = chunk.type
+          if "response.output_text.delta" == _exp_0 then
+            table.insert(accumulated_text, chunk.delta)
+            if stream_callback then
+              return stream_callback(chunk.delta, chunk)
+            end
+          elseif "response.completed" == _exp_0 then
+            if type(chunk.response) == "table" then
+              local parsed = parse_responses_response(chunk.response)
+              if parsed then
+                add_response_helpers(parsed)
+                final_response = parsed
+              end
+            end
           end
         end
       end

@@ -95,42 +95,6 @@ parse_responses_response = types.partial {
   status: empty + types.string\tag "status"
 }
 
-parse_response_stream_chunk = (chunk) ->
-  return unless type(chunk) == "table"
-  return unless chunk.type
-
-  -- New Responses streaming format
-  if chunk.type == "response.output_text.delta" and type(chunk.delta) == "string"
-    return {
-      type: chunk.type
-      text_delta: chunk.delta
-      raw: chunk
-    }
-
-  if chunk.type == "response.completed" and type(chunk.response) == "table"
-    parsed, err = parse_responses_response chunk.response
-    if parsed
-      chunk.response = parsed
-      return chunk
-    else
-      return nil, err
-
-  -- Support older/alternate streaming formats
-  if chunk.delta and type(chunk.delta.text) == "string"
-    return {
-      type: chunk.type
-      text_delta: chunk.delta.text
-      raw: chunk
-    }
-
-  if chunk.content_block_delta and type(chunk.content_block_delta.text) == "string"
-    return {
-      type: chunk.type
-      text_delta: chunk.content_block_delta.text
-      raw: chunk
-    }
-
-
 -- creates a ltn12 compatible filter function that will call chunk_callback
 -- for each parsed json chunk from the server-sent events api response
 create_response_stream_filter = (chunk_callback) ->
@@ -159,8 +123,7 @@ create_response_stream_filter = (chunk_callback) ->
           if json_data != "[DONE]"
             success, parsed = pcall -> cjson.decode json_data
             if success
-              if chunk_data = parse_response_stream_chunk parsed
-                chunk_callback chunk_data
+              chunk_callback parsed
 
     ...
 
@@ -212,15 +175,17 @@ class ResponsesChatSession
 
     wrapped_callback = if merged_opts.stream
       (chunk) ->
-        if chunk.text_delta
-          table.insert accumulated_text, chunk.text_delta
-
-        if chunk.response
-          add_response_helpers chunk.response
-          final_response = chunk.response
-
-        if stream_callback
-          stream_callback chunk
+        switch chunk.type
+          when "response.output_text.delta"
+            table.insert accumulated_text, chunk.delta
+            if stream_callback
+              stream_callback chunk.delta, chunk
+          when "response.completed"
+            if type(chunk.response) == "table"
+              parsed = parse_responses_response chunk.response
+              if parsed
+                add_response_helpers parsed
+                final_response = parsed
 
     status, response = @client\create_response input, merged_opts, wrapped_callback
 

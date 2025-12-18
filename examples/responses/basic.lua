@@ -27,16 +27,13 @@ print(response.output[1].content[1].text)
 print("\n== Streaming example (via session) ==")
 local stream_session = client:new_responses_chat_session()
 
-local streamed_text, err, raw = stream_session:send("Stream a brief greeting.", function(chunk)
-  if chunk.text_delta then
-    io.write(chunk.text_delta)
-    io.flush()
-  end
-
-  if chunk.response then
-    print("\n\nCompleted response ID: " .. chunk.response.id)
-  end
+local streamed_text, err, raw = stream_session:send("Stream a brief greeting.", function(delta)
+  -- delta is the text string, second arg (raw) is the raw event object
+  io.write(delta)
+  io.flush()
 end)
+
+print() -- newline after streaming
 
 if not streamed_text then
   io.stderr:write("Streaming request failed: " .. err .. "\n")

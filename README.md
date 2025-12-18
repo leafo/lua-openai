@@ -124,8 +124,9 @@ client:create_response({
 }, {
   stream = true
 }, function(chunk)
-  if chunk.text_delta then
-    io.stdout:write(chunk.text_delta)
+  -- Raw event object from API: check type and access delta directly
+  if chunk.type == "response.output_text.delta" then
+    io.stdout:write(chunk.delta)
     io.stdout:flush()
   end
 end)
@@ -246,7 +247,7 @@ Sends a request to the `/responses` endpoint (Responses API).
 
 - `input`: A string or array of message objects (with `role` and `content` fields)
 - `opts`: Additional options passed directly to the API (eg. model, temperature, instructions, tools, previous_response_id, etc.) https://platform.openai.com/docs/api-reference/responses
-- `stream_callback`: Optional function called for each parsed chunk when `stream = true` is passed in opts
+- `stream_callback`: Optional function called for each raw event object when `stream = true` is passed in opts (eg. `{type = "response.output_text.delta", delta = "Hello"}`)
 
 Returns HTTP status, response object, and output headers. The response object
 will be decoded from JSON if possible, otherwise the raw string is returned.
@@ -319,6 +320,57 @@ Sends a request to the `/images/generations` endpoint to generate images.
 - `params`: Parameters for image generation (prompt, n, size, etc.) https://platform.openai.com/docs/api-reference/images/create
 
 Returns HTTP status, response object, and output headers.
+
+#### ResponsesChatSession
+
+This class manages chat sessions using OpenAI's Responses API. Unlike
+ChatSession, conversation state is maintained server-side via
+`previous_response_id`. Typically created with `new_responses_chat_session`.
+
+The field `response_history` stores an array of response objects from past
+interactions. The field `current_response_id` holds the ID of the most recent
+response, used to maintain conversation continuity.
+
+##### `new(client, opts)`
+
+Constructor for the ResponsesChatSession.
+
+- `client`: An instance of the OpenAI client.
+- `opts`: An optional table of options.
+  - `model`: Model to use (defaults to client's default_model)
+  - `instructions`: System instructions for the conversation
+  - `tools`: Array of tool definitions
+  - `previous_response_id`: Resume from a previous response
+
+##### `session:send(input, stream_callback)`
+
+Sends input and returns the response, maintaining conversation state
+automatically.
+
+- `input`: A string or array of message objects.
+- `stream_callback`: Optional function for streaming responses.
+
+Returns a response object on success (or accumulated text string when
+streaming). On failure, returns `nil`, an error message, and the raw response.
+
+Response objects have helper methods:
+- `response:get_output_text()`: Extract all text content as a string
+- `response:get_images()`: Extract generated images (when using image_generation tool)
+- `tostring(response)`: Converts to text string
+
+The `stream_callback` receives two arguments: the delta text string and the raw
+event object. Each call provides an incremental piece of the response text.
+
+##### `session:create_response(input, opts, stream_callback)`
+
+Lower-level method to create a response with additional options.
+
+- `input`: A string or array of message objects.
+- `opts`: Additional options (model, temperature, tools, previous_response_id, etc.)
+- `stream_callback`: Optional function for streaming responses.
+
+Returns a response object on success. On failure, returns `nil`, an error
+message, and the raw response.
 
 #### ChatSession
 

@@ -7,8 +7,12 @@ client:create_chat_completion({
 }, {
   stream = true
 }, function(chunk)
-  io.stdout:write(chunk.content)
-  io.stdout:flush()
+  -- Raw event object from API: access content via choices[1].delta.content
+  local delta = chunk.choices and chunk.choices[1] and chunk.choices[1].delta
+  if delta and delta.content then
+    io.stdout:write(delta.content)
+    io.stdout:flush()
+  end
 end)
 
 print() -- print a newline
