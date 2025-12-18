@@ -146,8 +146,12 @@ client:create_chat_completion({
 }, {
   stream = true
 }, function(chunk)
-  io.stdout:write(chunk.content)
-  io.stdout:flush()
+  -- Raw event object from API: access content via choices[1].delta.content
+  local delta = chunk.choices and chunk.choices[1] and chunk.choices[1].delta
+  if delta and delta.content then
+    io.stdout:write(delta.content)
+    io.stdout:flush()
+  end
 end)
 
 print() -- print a newline
@@ -203,14 +207,18 @@ server-side via `previous_response_id`.
 
 ##### `client:create_chat_completion(messages, opts, chunk_callback)`
 
-Sends a request to the `/chat/completions` endpoint. Also available as `client:chat(...)` for backward compatibility.
+Sends a request to the `/chat/completions` endpoint.
 
 - `messages`: An array of message objects.
 - `opts`: Additional options for the chat, passed directly to the API (eg. model, temperature, etc.) https://platform.openai.com/docs/api-reference/chat
-- `chunk_callback`: A function to be called for parsed streaming output when `stream = true` is passed to `opts`.
+- `chunk_callback`: A function to be called for each raw event object when `stream = true` is passed to `opts`. Each chunk is the parsed API response (eg. `{object = "chat.completion.chunk", choices = {{delta = {content = "..."}, index = 0}}}`).
 
 Returns HTTP status, response object, and output headers. The response object
 will be decoded from JSON if possible, otherwise the raw string is returned.
+
+##### `client:chat(messages, opts, chunk_callback)`
+
+Legacy alias for `create_chat_completion` with filtered streaming chunks. When streaming, the callback receives parsed chunks in the format `{content = "...", index = ...}` instead of raw event objects.
 
 ##### `client:completion(prompt, opts)`
 
