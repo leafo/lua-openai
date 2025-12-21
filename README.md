@@ -466,6 +466,64 @@ and the raw request response.
 See `chat:send` for details on the `stream_callback`
 
 
+## Using with Google Gemini
+
+This library includes a compatibility layer for Google's Gemini API through
+their [OpenAI-compatible
+endpoint](https://ai.google.dev/gemini-api/docs/openai). The `Gemini` client
+extends the `OpenAI` class and supports chat completions, chat sessions,
+embeddings, and structured output.
+
+```lua
+local Gemini = require("openai.compat.gemini")
+local client = Gemini.new(os.getenv("GEMINI_API_KEY"))
+
+-- Use chat completions
+local status, response = client:create_chat_completion({
+  {role = "user", content = "Hello, how are you?"}
+}, {
+  model = "gemini-2.5-flash" -- this is the default model
+})
+
+if status == 200 then
+  print(response.choices[1].message.content)
+end
+```
+
+### Chat Sessions with Gemini
+
+```lua
+local Gemini = require("openai.compat.gemini")
+local client = Gemini.new(os.getenv("GEMINI_API_KEY"))
+
+local chat = client:new_chat_session({
+  messages = {
+    {role = "system", content = "You are a helpful assistant."}
+  }
+})
+
+print(chat:send("What is the capital of France?"))
+print(chat:send("What is its population?")) -- follow-up with context
+```
+
+### Embeddings with Gemini
+
+```lua
+local Gemini = require("openai.compat.gemini")
+local client = Gemini.new(os.getenv("GEMINI_API_KEY"))
+
+local status, response = client:embedding("Hello world", {
+  model = "gemini-embedding-001"
+})
+
+if status == 200 then
+  print("Dimensions:", #response.data[1].embedding)
+end
+```
+
+See the `examples/gemini/` directory for more examples including structured
+output with JSON schemas.
+
 ## Appendix
 
 ### Chat Session With Functions
