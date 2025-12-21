@@ -212,6 +212,10 @@ class OpenAI
     if @api_key
       headers["Authorization"] = "Bearer #{@api_key}"
 
+    if @headers
+      for k,v in pairs @headers
+        headers[k] = v
+
     if more_headers
       for k,v in pairs more_headers
         headers[k] = v
