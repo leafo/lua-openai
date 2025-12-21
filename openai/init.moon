@@ -66,7 +66,7 @@ class OpenAI
       chunk_callback = (chunk) ->
         -- filter chunk to only pass through chat.completion.chunk with parsed delta
         if delta = parse_completion_chunk chunk
-          cb delta
+          cb delta, chunk
 
     @create_chat_completion messages, opts, chunk_callback
 

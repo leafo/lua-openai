@@ -3,6 +3,11 @@ local cjson = require("cjson")
 local types
 types = require("tableshape").types
 local empty = (types["nil"] + types.literal(cjson.null)):describe("nullable")
+local completion_chunk_mt = {
+  __tostring = function(self)
+    return self.content or ""
+  end
+}
 local content_format = types.string + types.array_of(types.one_of({
   types.shape({
     type = "text",
@@ -76,7 +81,9 @@ local parse_completion_chunk = types.partial({
       index = types.number:tag("index")
     })
   })
-})
+}) % function(value, state)
+  return setmetatable(state, completion_chunk_mt)
+end
 local consume_json_head
 do
   local C, S, P

@@ -7,6 +7,11 @@ import types from require "tableshape"
 
 empty = (types.nil + types.literal(cjson.null))\describe "nullable"
 
+-- metatable for stream chunks passed to callback
+completion_chunk_mt = {
+  __tostring: => @content or ""
+}
+
 content_format = types.string + types.array_of types.one_of {
   types.shape { type: "text", text: types.string }
   types.shape { type: "image_url", image_url: types.partial {
@@ -87,7 +92,7 @@ parse_error_message = types.partial {
 --   ]
 -- }
 
-parse_completion_chunk = types.partial {
+parse_completion_chunk = types.partial({
   object: "chat.completion.chunk"
   -- not sure of the whole range of chunks, so for now we strictly parse an append
   choices: types.shape {
@@ -98,7 +103,7 @@ parse_completion_chunk = types.partial {
       index: types.number\tag "index"
     }
   }
-}
+}) % (value, state) -> setmetatable state, completion_chunk_mt
 
 -- lpeg pattern to read a json data block from the front of a string, returns
 -- the json blob and the rest of the string if it could parse one

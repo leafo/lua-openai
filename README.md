@@ -358,8 +358,17 @@ Response objects have helper methods:
 - `response:get_images()`: Extract generated images (when using image_generation tool)
 - `tostring(response)`: Converts to text string
 
-The `stream_callback` receives two arguments: the delta text string and the raw
+The `stream_callback` receives two arguments: a parsed chunk object and the raw
 event object. Each call provides an incremental piece of the response text.
+
+The parsed chunk has a `content` field and supports `tostring()`:
+
+```lua
+session:send("Hello", function(chunk, raw_event)
+  io.write(tostring(chunk)) -- or chunk.content
+  io.flush()
+end)
+```
 
 ##### `session:create_response(input, opts, stream_callback)`
 
@@ -428,19 +437,21 @@ function by passing `role = "function"` object to the `send` method
 - `message`: A message object or a string.
 - `stream_callback`: (optional) A function to enable streaming output.
 
-By providing a `stream_callback`, the request will runin streaming mode. This
-function receives chunks as they are parsed from the response.
+By providing a `stream_callback`, the request will run in streaming mode. The
+callback receives two arguments: a parsed chunk object and the raw event object.
 
-These chunks have the following format:
+The parsed chunk has the following fields:
 
 - `content`: A string containing the text of the assistant's generated response.
+- `index`: The index of the choice (usually 0).
 
-For example, a chunk might look like this:
+The chunk supports `tostring()` to easily print the content:
 
 ```lua
-{
-  content = "This is a part of the assistant's response.",
-}
+chat:send("Hello", function(chunk, raw_event)
+  io.write(tostring(chunk)) -- or chunk.content
+  io.flush()
+end)
 ```
 
 ##### `chat:generate_response(append_response, stream_callback=nil)`

@@ -33,6 +33,11 @@ response_mt = {
   __tostring: => @get_output_text!
 }
 
+-- metatable for stream chunks passed to callback
+response_chunk_mt = {
+  __tostring: => @content or ""
+}
+
 add_response_helpers = (response) ->
   if response
     setmetatable response, response_mt
@@ -179,7 +184,7 @@ class ResponsesChatSession
           when "response.output_text.delta"
             table.insert accumulated_text, chunk.delta
             if stream_callback
-              stream_callback chunk.delta, chunk
+              stream_callback setmetatable({content: chunk.delta}, response_chunk_mt), chunk
           when "response.completed"
             if type(chunk.response) == "table"
               parsed = parse_responses_response chunk.response

@@ -389,16 +389,20 @@ describe "OpenAI API Client", ->
       }
 
       chunks_received = {}
-      stream_callback = (chunk) ->
-        table.insert chunks_received, chunk
+      stream_callback = (chunk, raw) ->
+        table.insert chunks_received, {chunk, raw}
 
       response = assert chat\send("Why did the chicken cross the road?", stream_callback)
 
+      -- Callback receives parsed chunk {content, index} and raw event object
       assert.same {
-        {content: "This is ", index: 0}
-        {content: "a chat ", index: 1}
-        {content: "response.", index: 2}
+        {{content: "This is ", index: 0}, {object: "chat.completion.chunk", choices: {{delta: {content: "This is "}, index: 0}}}}
+        {{content: "a chat ", index: 1}, {object: "chat.completion.chunk", choices: {{delta: {content: "a chat "}, index: 1}}}}
+        {{content: "response.", index: 2}, {object: "chat.completion.chunk", choices: {{delta: {content: "response."}, index: 2}}}}
       }, chunks_received
+
+      -- Verify chunk has __tostring metamethod
+      assert.same "This is ", tostring(chunks_received[1][1])
 
       assert.same "This is a chat response.", response
 
@@ -621,8 +625,11 @@ describe "OpenAI API Client", ->
       -- Session returns accumulated text
       assert.same "Hello world", out
 
-      -- Callback receives delta string and raw event object
+      -- Callback receives parsed event {content} and raw event object
       assert.same {
-        {"Hello", {type: "response.output_text.delta", delta: "Hello"}}
-        {" world", {type: "response.output_text.delta", delta: " world"}}
+        {{content: "Hello"}, {type: "response.output_text.delta", delta: "Hello"}}
+        {{content: " world"}, {type: "response.output_text.delta", delta: " world"}}
       }, received
+
+      -- Verify chunk has __tostring metamethod
+      assert.same "Hello", tostring(received[1][1])

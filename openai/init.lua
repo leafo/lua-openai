@@ -63,7 +63,7 @@ do
             do
               local delta = parse_completion_chunk(chunk)
               if delta then
-                return cb(delta)
+                return cb(delta, chunk)
               end
             end
           end

@@ -50,6 +50,11 @@ local response_mt = {
     return self:get_output_text()
   end
 }
+local response_chunk_mt = {
+  __tostring = function(self)
+    return self.content or ""
+  end
+}
 local add_response_helpers
 add_response_helpers = function(response)
   if response then
@@ -205,7 +210,9 @@ do
           if "response.output_text.delta" == _exp_0 then
             table.insert(accumulated_text, chunk.delta)
             if stream_callback then
-              return stream_callback(chunk.delta, chunk)
+              return stream_callback(setmetatable({
+                content = chunk.delta
+              }, response_chunk_mt), chunk)
             end
           elseif "response.completed" == _exp_0 then
             if type(chunk.response) == "table" then
