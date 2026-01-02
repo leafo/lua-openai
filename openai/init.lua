@@ -28,11 +28,10 @@ do
       if chunk_callback == nil then
         chunk_callback = nil
       end
-      local test_message, create_chat_stream_filter
-      do
-        local _obj_0 = require("openai.chat_completions")
-        test_message, create_chat_stream_filter = _obj_0.test_message, _obj_0.create_chat_stream_filter
-      end
+      local test_message
+      test_message = require("openai.chat_completions").test_message
+      local create_stream_filter
+      create_stream_filter = require("openai.sse").create_stream_filter
       local test_messages = types.array_of(test_message)
       assert(test_messages(messages))
       local payload = {
@@ -46,7 +45,7 @@ do
       end
       local stream_filter
       if payload.stream then
-        stream_filter = create_chat_stream_filter(chunk_callback)
+        stream_filter = create_stream_filter(chunk_callback)
       end
       return self:_request("POST", "/chat/completions", payload, nil, stream_filter)
     end,
@@ -164,8 +163,8 @@ do
       if stream_callback == nil then
         stream_callback = nil
       end
-      local create_response_stream_filter
-      create_response_stream_filter = require("openai.responses").create_response_stream_filter
+      local create_stream_filter
+      create_stream_filter = require("openai.sse").create_stream_filter
       local payload = {
         model = self.default_model,
         input = input
@@ -177,7 +176,7 @@ do
       end
       local stream_filter
       if payload.stream and stream_callback then
-        stream_filter = create_response_stream_filter(stream_callback)
+        stream_filter = create_stream_filter(stream_callback)
       end
       return self:_request("POST", "/responses", payload, nil, stream_filter)
     end,

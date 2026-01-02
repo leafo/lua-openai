@@ -100,39 +100,6 @@ parse_responses_response = types.partial {
   status: empty + types.string\tag "status"
 }
 
--- creates a ltn12 compatible filter function that will call chunk_callback
--- for each parsed json chunk from the server-sent events api response
-create_response_stream_filter = (chunk_callback) ->
-  assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
-
-  buffer = ""
-
-  (...) ->
-    chunk = ...
-
-    if type(chunk) == "string"
-      buffer ..= chunk
-
-      while true
-        newline_pos = buffer\find "\n"
-        break unless newline_pos
-
-        line = buffer\sub 1, newline_pos - 1
-        buffer = buffer\sub newline_pos + 1
-
-        line = line\gsub "%s*$", "" -- trim trailing whitespace
-
-        if line\match "^data: "
-          json_data = line\sub 7 -- Remove "data: " prefix
-
-          if json_data != "[DONE]"
-            success, parsed = pcall -> cjson.decode json_data
-            if success
-              chunk_callback parsed
-
-    ...
-
-
 -- A client side chat session backed by the responses API
 class ResponsesChatSession
   new: (@client, @opts={}) =>
@@ -216,5 +183,4 @@ class ResponsesChatSession
 
 {
   :ResponsesChatSession
-  :create_response_stream_filter
 }

@@ -38,7 +38,8 @@ class OpenAI
   -- opts: additional parameters as described in https://platform.openai.com/docs/api-reference/chat, eg. model, temperature, etc.
   -- completion_callback: function to be called for parsed streaming output when stream = true is passed to opts
   create_chat_completion: (messages, opts, chunk_callback=nil) =>
-    import test_message, create_chat_stream_filter from require "openai.chat_completions"
+    import test_message from require "openai.chat_completions"
+    import create_stream_filter from require "openai.sse"
 
     test_messages = types.array_of test_message
     assert test_messages messages
@@ -53,7 +54,7 @@ class OpenAI
         payload[k] = v
 
     stream_filter = if payload.stream
-      create_chat_stream_filter chunk_callback
+      create_stream_filter chunk_callback
 
     @_request "POST", "/chat/completions", payload, nil, stream_filter
 
@@ -176,7 +177,7 @@ class OpenAI
   -- stream_callback: optional function for streaming responses
   -- Returns: status, response, headers (raw result from _request)
   create_response: (input, opts={}, stream_callback=nil) =>
-    import create_response_stream_filter from require "openai.responses"
+    import create_stream_filter from require "openai.sse"
 
     payload = {
       model: @default_model
@@ -188,7 +189,7 @@ class OpenAI
         payload[k] = v
 
     stream_filter = if payload.stream and stream_callback
-      create_response_stream_filter stream_callback
+      create_stream_filter stream_callback
 
     @_request "POST", "/responses", payload, nil, stream_filter
 

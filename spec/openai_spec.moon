@@ -425,6 +425,34 @@ describe "OpenAI API Client", ->
         {object: "chat.completion.chunk", choices: {{delta: {content: "response."}, index: 2}}}
       }, chunks_received
 
+    it "handles SSE comments in stream", ->
+      -- Override the socket mock to include comments
+      package.loaded["socket.http"] = {
+        request: (opts={}) ->
+          chunks = {
+            ": OPENROUTER PROCESSING\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"content\": \"Hello\"}, \"index\": 0}]}\n"
+            ": keep-alive comment\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"content\": \" world\"}, \"index\": 1}]}\n"
+            "data: [DONE]"
+          }
+          for chunk in *chunks
+            opts.sink chunk
+          1, 200, {}
+      }
+
+      client = OpenAI "test-api-key"
+      chunks_received = {}
+      stream_callback = (chunk) ->
+        table.insert chunks_received, chunk
+
+      status, response = client\create_chat_completion {
+        {role: "user", content: "test"}
+      }, {stream: true}, stream_callback
+
+      assert.same 200, status
+      assert.same 2, #chunks_received  -- Only data chunks, not comments
+
   describe "responses", ->
     it "creates a response (raw API)", ->
       client = OpenAI "test-api-key"

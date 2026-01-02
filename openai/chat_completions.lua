@@ -84,49 +84,8 @@ local parse_completion_chunk = types.partial({
 }) % function(value, state)
   return setmetatable(state, completion_chunk_mt)
 end
-local consume_json_head
-do
-  local C, S, P
-  do
-    local _obj_0 = require("lpeg")
-    C, S, P = _obj_0.C, _obj_0.S, _obj_0.P
-  end
-  local consume_json = P(function(str, pos)
-    local str_len = #str
-    for k = pos + 1, str_len do
-      local candidate = str:sub(pos, k)
-      local parsed = false
-      pcall(function()
-        parsed = cjson.decode(candidate)
-      end)
-      if parsed then
-        return k + 1
-      end
-    end
-    return nil
-  end)
-  consume_json_head = S("\t\n\r ") ^ 0 * P("data: ") * C(consume_json) * C(P(1) ^ 0)
-end
-local create_chat_stream_filter
-create_chat_stream_filter = function(chunk_callback)
-  assert(types["function"](chunk_callback), "Must provide chunk_callback function when streaming response")
-  local accumulation_buffer = ""
-  return function(...)
-    local chunk = ...
-    if type(chunk) == "string" then
-      accumulation_buffer = accumulation_buffer .. chunk
-      while true do
-        local json_blob, rest = consume_json_head:match(accumulation_buffer)
-        if not (json_blob) then
-          break
-        end
-        accumulation_buffer = rest
-        chunk_callback(cjson.decode(json_blob))
-      end
-    end
-    return ...
-  end
-end
+local create_stream_filter
+create_stream_filter = require("openai.sse").create_stream_filter
 local ChatSession
 do
   local _class_0
@@ -187,7 +146,7 @@ do
       if stream_callback then
         assert(type(response) == "string", "Expected string response from streaming output")
         local parts = { }
-        local f = create_chat_stream_filter(function(c)
+        local f = create_stream_filter(function(c)
           do
             local parsed = parse_completion_chunk(c)
             if parsed then
@@ -260,6 +219,5 @@ end
 return {
   ChatSession = ChatSession,
   test_message = test_message,
-  create_chat_stream_filter = create_chat_stream_filter,
   parse_completion_chunk = parse_completion_chunk
 }

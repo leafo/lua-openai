@@ -14,7 +14,6 @@ that supports the LuaSocket request interface. Compatible with OpenResty using
 }
 dependencies = {
   "lua >= 5.1",
-  "lpeg",
   "lua-cjson",
   "tableshape",
   "luasocket",
@@ -24,6 +23,7 @@ build = {
    type = "builtin",
    modules = {
       ["openai"] = "openai/init.lua",
+      ["openai.sse"] = "openai/sse.lua",
       ["openai.chat_completions"] = "openai/chat_completions.lua",
       ["openai.responses"] = "openai/responses.lua",
       ["openai.compat.gemini"] = "openai/compat/gemini.lua"

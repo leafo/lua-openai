@@ -105,52 +105,7 @@ parse_completion_chunk = types.partial({
   }
 }) % (value, state) -> setmetatable state, completion_chunk_mt
 
--- lpeg pattern to read a json data block from the front of a string, returns
--- the json blob and the rest of the string if it could parse one
-consume_json_head = do
-  import C, S, P from require "lpeg"
-
-  -- this pattern reads from the front just enough characters to consume a
-  -- valid json object
-  consume_json = P (str, pos) ->
-    str_len = #str
-    for k=pos+1,str_len
-      candidate = str\sub pos, k
-      parsed = false
-      pcall -> parsed = cjson.decode candidate
-      if parsed
-        return k + 1
-
-    return nil -- fail
-
-  S("\t\n\r ")^0 * P("data: ") * C(consume_json) * C(P(1)^0)
-
-
--- creates a ltn12 compatible filter function that will call chunk_callback
--- for each parsed json chunk from the server-sent events api response
-create_chat_stream_filter = (chunk_callback) ->
-  assert types.function(chunk_callback), "Must provide chunk_callback function when streaming response"
-
-  accumulation_buffer = ""
-
-  (...) ->
-    chunk = ...
-
-    if type(chunk) == "string"
-      accumulation_buffer ..= chunk
-
-      while true
-        json_blob, rest = consume_json_head\match accumulation_buffer
-        unless json_blob
-          break
-
-        accumulation_buffer = rest
-        chunk_callback cjson.decode json_blob
-        -- if chunk = parse_completion_chunk cjson.decode json_blob
-        --   chunk_callback chunk
-
-    ...
-
+import create_stream_filter from require "openai.sse"
 
 -- handles appending response for each call to chat
 -- TODO: hadle appending the streaming response to the output
@@ -219,7 +174,7 @@ class ChatSession
         "Expected string response from streaming output"
 
       parts = {}
-      f = create_chat_stream_filter (c) ->
+      f = create_stream_filter (c) ->
         if parsed = parse_completion_chunk c
           table.insert parts, parsed.content
 
@@ -256,6 +211,5 @@ class ChatSession
 {
   :ChatSession
   :test_message
-  :create_chat_stream_filter
   :parse_completion_chunk
 }
