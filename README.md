@@ -8,6 +8,9 @@ with OpenResty using
 This project implements both the classic Chat Completions API in addition to
 the modern Responses API.
 
+Compatibility clients for [Google Gemini](#using-with-google-gemini) and
+[OpenRouter](#using-with-openrouter) are also included.
+
 <details>
 <summary>AI Generated Disclaimer</summary>
 
