@@ -524,6 +524,26 @@ end
 See the `examples/gemini/` directory for more examples including structured
 output with JSON schemas.
 
+## Using with OpenRouter
+
+[OpenRouter](https://openrouter.ai/) provides access to many AI models through a
+unified API. This library includes an `OpenRouter` client that uses their
+[OpenAI-compatible endpoint](https://openrouter.ai/docs/quickstart).
+
+```lua
+local OpenRouter = require("openai.compat.openrouter")
+local client = OpenRouter.new(os.getenv("OPENROUTER_API_KEY"))
+
+local status, response = client:create_chat_completion({
+  {role = "user", content = "Hello, how are you?"}
+}, {
+  model = "anthropic/claude-sonnet-4" -- default model is openai/gpt-4.1
+})
+```
+
+The `OpenRouter` client extends `OpenAI` and supports all the same methods
+including chat completions, chat sessions, and streaming.
+
 ## Appendix
 
 ### Chat Session With Functions
