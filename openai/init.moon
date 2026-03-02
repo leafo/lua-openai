@@ -23,6 +23,8 @@ class OpenAI
       for k, v in pairs config
         @config[k] = v
 
+    @api_base = @config.api_base if @config.api_base
+
   new_chat_session: (...) =>
     @new_chat_completions_session ...
 

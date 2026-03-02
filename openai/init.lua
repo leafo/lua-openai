@@ -245,6 +245,9 @@ do
           self.config[k] = v
         end
       end
+      if self.config.api_base then
+        self.api_base = self.config.api_base
+      end
     end,
     __base = _base_0,
     __name = "OpenAI"
