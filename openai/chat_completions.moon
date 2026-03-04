@@ -19,19 +19,45 @@ content_format = types.string + types.array_of types.one_of {
   }}
 }
 
+tool_call_shape = types.partial {
+  id: empty + types.string
+  type: empty + types.string
+  ["function"]: empty + types.partial {
+    name: types.string
+    arguments: types.string
+  }
+}
+
+tool_calls_list = types.array_of tool_call_shape
+
 test_message = types.one_of {
   types.partial {
-    role: types.one_of {"system", "user", "assistant"}
-    content: empty + content_format -- this can be empty when function_call is set
+    role: types.one_of {"system", "user"}
+    content: empty + content_format
     name: empty + types.string
-    function_call: empty + types.table
   }
 
-  -- this message type is for sending a function call response back
+  types.partial {
+    role: "assistant"
+    content: empty + content_format -- this can be empty when tool/function calls are set
+    name: empty + types.string
+    function_call: empty + types.table
+    tool_calls: empty + tool_calls_list
+  }
+
+  -- legacy function-call response shape (kept for backwards compatibility)
   types.partial {
     role: types.one_of {"function"}
     name: types.string
     content: empty + types.string
+  }
+
+  -- tool response message
+  types.partial {
+    role: types.one_of {"tool"}
+    tool_call_id: types.string
+    content: empty + types.string
+    name: empty + types.string
   }
 }
 
@@ -58,6 +84,12 @@ parse_chat_response = types.partial {
             arguments: types.string
           }
         })
+
+        types.partial {
+          role: "assistant"
+          content: empty + content_format
+          tool_calls: tool_calls_list
+        }
 
         types.partial {
           role: "assistant"
@@ -98,7 +130,16 @@ parse_completion_chunk = types.partial({
   choices: types.shape {
     types.partial {
       delta: types.partial {
-        "content": types.string\tag "content"
+        "content": empty + types.string\tag "content"
+        tool_calls: (empty + types.array_of(types.partial {
+          id: empty + types.string
+          index: empty + types.number
+          type: empty + types.string
+          ["function"]: empty + types.partial {
+            name: empty + types.string
+            arguments: empty + types.string
+          }
+        }))\tag "tool_calls"
       }
       index: types.number\tag "index"
     }
@@ -121,6 +162,11 @@ class ChatSession
       for func in *@opts.functions
         assert test_function func
         table.insert @functions, func
+
+    if type(@opts.tools) == "table"
+      @tools = {}
+      for tool in *@opts.tools
+        table.insert @tools, tool
 
   append_message: (m, ...) =>
     assert test_message m
@@ -150,6 +196,9 @@ class ChatSession
     status, response = @client\chat @messages, {
       function_call: @opts.function_call -- override the default function call behavior
       functions: @functions
+      tools: @tools
+      tool_choice: @opts.tool_choice
+      parallel_tool_calls: @opts.parallel_tool_calls
       model: @opts.model
       temperature: @opts.temperature
       stream: stream_callback and true or nil
@@ -174,20 +223,64 @@ class ChatSession
         "Expected string response from streaming output"
 
       parts = {}
+      aggregated_tool_calls = {}
       f = create_stream_filter (c) ->
         if parsed = parse_completion_chunk c
-          table.insert parts, parsed.content
+          if parsed.content
+            table.insert parts, parsed.content
+
+          if parsed.tool_calls
+            for tool_delta in *parsed.tool_calls
+              tool_index = (tool_delta.index or 0) + 1
+              dest = aggregated_tool_calls[tool_index]
+              unless dest
+                dest = {}
+                aggregated_tool_calls[tool_index] = dest
+
+              if tool_delta.id
+                dest.id = tool_delta.id
+
+              if tool_delta.type
+                dest.type = tool_delta.type
+
+              if tool_delta["function"]
+                dest["function"] or= {}
+                delta_fn = tool_delta["function"]
+                if delta_fn.name
+                  dest["function"].name = delta_fn.name
+
+                if delta_fn.arguments
+                  current_args = dest["function"].arguments or ""
+                  dest["function"].arguments = current_args .. delta_fn.arguments
 
       f response
       message = {
         role: "assistant"
-        content: table.concat parts
       }
+      combined = table.concat parts
+      if #combined > 0
+        message.content = combined
+
+      if next aggregated_tool_calls
+        message.tool_calls = {}
+        for tool in *aggregated_tool_calls
+          if tool
+            tool.type or= "function"
+            tool_entry = { type: tool.type }
+            if tool.id
+              tool_entry.id = tool.id
+            if tool["function"]
+              tool_entry["function"] = {}
+              if tool["function"].name
+                tool_entry["function"].name = tool["function"].name
+              if tool["function"].arguments
+                tool_entry["function"].arguments = tool["function"].arguments
+            table.insert message.tool_calls, tool_entry
 
       if append_response
         @append_message message
 
-      return message.content
+      return message.content or message
 
     out, err = parse_chat_response response
 
@@ -203,6 +296,8 @@ class ChatSession
       }
       if out.message.function_call
         message.function_call = out.message.function_call
+      if out.message.tool_calls
+        message.tool_calls = out.message.tool_calls
       @append_message message
 
     -- response is missing for function_calls, so we return the entire message object
@@ -212,4 +307,5 @@ class ChatSession
   :ChatSession
   :test_message
   :parse_completion_chunk
+  :tool_call_shape
 }

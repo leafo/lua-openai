@@ -20,16 +20,30 @@ local content_format = types.string + types.array_of(types.one_of({
     })
   })
 }))
+local tool_call_shape = types.partial({
+  id = empty + types.string,
+  type = empty + types.string,
+  ["function"] = empty + types.partial({
+    name = types.string,
+    arguments = types.string
+  })
+})
+local tool_calls_list = types.array_of(tool_call_shape)
 local test_message = types.one_of({
   types.partial({
     role = types.one_of({
       "system",
-      "user",
-      "assistant"
+      "user"
     }),
     content = empty + content_format,
+    name = empty + types.string
+  }),
+  types.partial({
+    role = "assistant",
+    content = empty + content_format,
     name = empty + types.string,
-    function_call = empty + types.table
+    function_call = empty + types.table,
+    tool_calls = empty + tool_calls_list
   }),
   types.partial({
     role = types.one_of({
@@ -37,6 +51,14 @@ local test_message = types.one_of({
     }),
     name = types.string,
     content = empty + types.string
+  }),
+  types.partial({
+    role = types.one_of({
+      "tool"
+    }),
+    tool_call_id = types.string,
+    content = empty + types.string,
+    name = empty + types.string
   })
 })
 local test_function = types.shape({
@@ -59,6 +81,11 @@ local parse_chat_response = types.partial({
         }),
         types.partial({
           role = "assistant",
+          content = empty + content_format,
+          tool_calls = tool_calls_list
+        }),
+        types.partial({
+          role = "assistant",
           content = types.string:tag("response")
         })
       }):tag("message")
@@ -76,7 +103,16 @@ local parse_completion_chunk = types.partial({
   choices = types.shape({
     types.partial({
       delta = types.partial({
-        ["content"] = types.string:tag("content")
+        ["content"] = empty + types.string:tag("content"),
+        tool_calls = (empty + types.array_of(types.partial({
+          id = empty + types.string,
+          index = empty + types.number,
+          type = empty + types.string,
+          ["function"] = empty + types.partial({
+            name = empty + types.string,
+            arguments = empty + types.string
+          })
+        }))):tag("tool_calls")
       }),
       index = types.number:tag("index")
     })
@@ -123,6 +159,9 @@ do
       local status, response = self.client:chat(self.messages, {
         function_call = self.opts.function_call,
         functions = self.functions,
+        tools = self.tools,
+        tool_choice = self.opts.tool_choice,
+        parallel_tool_calls = self.opts.parallel_tool_calls,
         model = self.opts.model,
         temperature = self.opts.temperature,
         stream = stream_callback and true or nil,
@@ -146,23 +185,84 @@ do
       if stream_callback then
         assert(type(response) == "string", "Expected string response from streaming output")
         local parts = { }
+        local aggregated_tool_calls = { }
         local f = create_stream_filter(function(c)
           do
             local parsed = parse_completion_chunk(c)
             if parsed then
-              return table.insert(parts, parsed.content)
+              if parsed.content then
+                table.insert(parts, parsed.content)
+              end
+              if parsed.tool_calls then
+                local _list_0 = parsed.tool_calls
+                for _index_0 = 1, #_list_0 do
+                  local tool_delta = _list_0[_index_0]
+                  local tool_index = (tool_delta.index or 0) + 1
+                  local dest = aggregated_tool_calls[tool_index]
+                  if not (dest) then
+                    dest = { }
+                    aggregated_tool_calls[tool_index] = dest
+                  end
+                  if tool_delta.id then
+                    dest.id = tool_delta.id
+                  end
+                  if tool_delta.type then
+                    dest.type = tool_delta.type
+                  end
+                  if tool_delta["function"] then
+                    local _update_0 = "function"
+                    dest[_update_0] = dest[_update_0] or { }
+                    local delta_fn = tool_delta["function"]
+                    if delta_fn.name then
+                      dest["function"].name = delta_fn.name
+                    end
+                    if delta_fn.arguments then
+                      local current_args = dest["function"].arguments or ""
+                      dest["function"].arguments = current_args .. delta_fn.arguments
+                    end
+                  end
+                end
+              end
             end
           end
         end)
         f(response)
         local message = {
-          role = "assistant",
-          content = table.concat(parts)
+          role = "assistant"
         }
+        local combined = table.concat(parts)
+        if #combined > 0 then
+          message.content = combined
+        end
+        if next(aggregated_tool_calls) then
+          message.tool_calls = { }
+          for _index_0 = 1, #aggregated_tool_calls do
+            local tool = aggregated_tool_calls[_index_0]
+            if tool then
+              tool.type = tool.type or "function"
+              local tool_entry = {
+                type = tool.type
+              }
+              if tool.id then
+                tool_entry.id = tool.id
+              end
+              if tool["function"] then
+                tool_entry["function"] = { }
+                if tool["function"].name then
+                  tool_entry["function"].name = tool["function"].name
+                end
+                if tool["function"].arguments then
+                  tool_entry["function"].arguments = tool["function"].arguments
+                end
+              end
+              table.insert(message.tool_calls, tool_entry)
+            end
+          end
+        end
         if append_response then
           self:append_message(message)
         end
-        return message.content
+        return message.content or message
       end
       local out, err = parse_chat_response(response)
       if not (out) then
@@ -176,6 +276,9 @@ do
         }
         if out.message.function_call then
           message.function_call = out.message.function_call
+        end
+        if out.message.tool_calls then
+          message.tool_calls = out.message.tool_calls
         end
         self:append_message(message)
       end
@@ -202,6 +305,14 @@ do
           table.insert(self.functions, func)
         end
       end
+      if type(self.opts.tools) == "table" then
+        self.tools = { }
+        local _list_0 = self.opts.tools
+        for _index_0 = 1, #_list_0 do
+          local tool = _list_0[_index_0]
+          table.insert(self.tools, tool)
+        end
+      end
     end,
     __base = _base_0,
     __name = "ChatSession"
@@ -219,5 +330,6 @@ end
 return {
   ChatSession = ChatSession,
   test_message = test_message,
-  parse_completion_chunk = parse_completion_chunk
+  parse_completion_chunk = parse_completion_chunk,
+  tool_call_shape = tool_call_shape
 }

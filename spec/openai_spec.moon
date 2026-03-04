@@ -360,6 +360,154 @@ describe "OpenAI API Client", ->
 
       assert.same "Good work!", res
 
+    it "with tool calls", ->
+      client = OpenAI "test-api-key"
+
+      tools = {
+        {
+          type: "function"
+          ["function"]: {
+            name: "convert_currency"
+            description: "Convert an amount from one currency to another."
+            parameters: {
+              type: "object"
+              properties: {
+                amount: { type: "number" }
+                from: { type: "string" }
+                to: { type: "string" }
+              }
+              required: {"amount", "from", "to"}
+            }
+          }
+        }
+      }
+
+      stub(client, "create_chat_completion").invokes (c, args, params) ->
+        assert.same {
+          {
+            role: "system"
+            content: "You convert currency"
+          }
+          {
+            role: "user"
+            content: "How much is 25 USD in EUR?"
+          }
+        }, args
+
+        assert.same {
+          model: "gpt-4o-mini"
+          tools: tools
+          tool_choice: "auto"
+          parallel_tool_calls: true
+        }, params
+
+        200, {
+          usage: {}
+          choices: {
+            {
+              message: {
+                role: "assistant"
+                tool_calls: {
+                  {
+                    id: "call_abc"
+                    type: "function"
+                    ["function"]: {
+                      name: "convert_currency"
+                      arguments: "{\"amount\": 25, \"from\": \"USD\", \"to\": \"EUR\"}"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+      chat = client\new_chat_session {
+        model: "gpt-4o-mini"
+        messages: {
+          {
+            role: "system"
+            content: "You convert currency"
+          }
+        }
+        tools: tools
+        tool_choice: "auto"
+        parallel_tool_calls: true
+      }
+
+      res = assert chat\send "How much is 25 USD in EUR?"
+
+      assert.same {
+        role: "assistant"
+        tool_calls: {
+          {
+            id: "call_abc"
+            type: "function"
+            ["function"]: {
+              name: "convert_currency"
+              arguments: "{\"amount\": 25, \"from\": \"USD\", \"to\": \"EUR\"}"
+            }
+          }
+        }
+      }, res
+
+      stub(client, "create_chat_completion").invokes (c, args, params) ->
+        assert.same {
+          {
+            role: "system"
+            content: "You convert currency"
+          }
+          {
+            role: "user"
+            content: "How much is 25 USD in EUR?"
+          }
+          {
+            role: "assistant"
+            tool_calls: {
+              {
+                id: "call_abc"
+                type: "function"
+                ["function"]: {
+                  name: "convert_currency"
+                  arguments: "{\"amount\": 25, \"from\": \"USD\", \"to\": \"EUR\"}"
+                }
+              }
+            }
+          }
+          {
+            role: "tool"
+            tool_call_id: "call_abc"
+            content: "{\"amount\": 25, \"from\": \"USD\", \"to\": \"EUR\", \"converted\": 22.9}"
+          }
+        }, args
+
+        assert.same {
+          model: "gpt-4o-mini"
+          tools: tools
+          tool_choice: "auto"
+          parallel_tool_calls: true
+        }, params
+
+        200, {
+          usage: {}
+          choices: {
+            {
+              message: {
+                role: "assistant"
+                content: "25 USD is about 22.9 EUR."
+              }
+            }
+          }
+        }
+
+      tool_result = assert chat\send {
+        role: "tool"
+        tool_call_id: "call_abc"
+        content: "{\"amount\": 25, \"from\": \"USD\", \"to\": \"EUR\", \"converted\": 22.9}"
+      }
+
+      assert.same "25 USD is about 22.9 EUR.", tool_result
+
 
   describe "streaming", ->
     before_each ->
@@ -452,6 +600,62 @@ describe "OpenAI API Client", ->
 
       assert.same 200, status
       assert.same 2, #chunks_received  -- Only data chunks, not comments
+
+    it "processes streaming tool calls", ->
+      -- Override the socket mock to return tool_calls chunks
+      package.loaded["socket.http"] = {
+        request: (opts={}) ->
+          chunks = {
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"id\": \"call_tool\", \"type\": \"function\", \"function\": {\"name\": \"convert_currency\"}}]}, \"index\": 0}]}\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"{\\\"amount\\\":25\"}}]}, \"index\": 0}]}\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \",\\\"from\\\":\\\"USD\\\"\"}}]}, \"index\": 0}]}\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \",\\\"to\\\":\\\"EUR\\\"}\"}}]}, \"index\": 0}]}\n"
+            "data: [DONE]"
+          }
+          for chunk in *chunks
+            opts.sink chunk
+          true, 200, {}
+      }
+
+      client = OpenAI "test-api-key"
+      chat = client\new_chat_session {
+        messages: {
+          {role: "user", content: "Convert 25 USD to EUR"}
+        }
+        tools: {
+          {
+            type: "function"
+            ["function"]: {
+              name: "convert_currency"
+              parameters: {}
+            }
+          }
+        }
+        tool_choice: "auto"
+      }
+
+      received_chunks = {}
+      stream_callback = (chunk, raw) ->
+        table.insert received_chunks, {chunk, raw}
+
+      response = assert chat\send("Convert 25 USD to EUR", stream_callback)
+
+      assert.same {
+        role: "assistant"
+        tool_calls: {
+          {
+            id: "call_tool"
+            type: "function"
+            ["function"]: {
+              name: "convert_currency"
+              arguments: "{\"amount\":25,\"from\":\"USD\",\"to\":\"EUR\"}"
+            }
+          }
+        }
+      }, response
+
+      -- Verify response is appended to chat history
+      assert.same response, chat.messages[#chat.messages]
 
   describe "responses", ->
     it "creates a response (raw API)", ->

@@ -413,9 +413,12 @@ Constructor for the ChatSession.
 - `client`: An instance of the OpenAI client.
 - `opts`: An optional table of options.
   - `messages`: An initial array of chat messages
-  - `functions`: A list of function declarations
+  - `functions`: A list of function declarations (legacy)
+  - `tools`: An array of tool definitions (modern tool calling interface)
+  - `tool_choice`: Controls which tool is called (`"auto"`, `"none"`, or a specific tool)
+  - `parallel_tool_calls`: Whether the model can make multiple tool calls in a single response
   - `temperature`: temperature setting
-  - `model`: Which chat completion model to use, eg. `gpt-4`, `gpt-3.5-turbo`
+  - `model`: Which chat completion model to use, eg. `gpt-4.1`, `gpt-4o-mini`
 
 ##### `chat:append_message(m, ...)`
 
@@ -546,6 +549,70 @@ local status, response = client:create_chat_completion({
 
 The `OpenRouter` client extends `OpenAI` and supports all the same methods
 including chat completions, chat sessions, and streaming.
+
+## Tool Calling
+
+OpenAI's [tool calling
+API](https://platform.openai.com/docs/guides/function-calling) allows models to
+request function calls during a conversation. The chat session manages the
+back-and-forth of tool calls and results automatically.
+
+```lua
+local openai = require("openai")
+local cjson = require("cjson")
+local client = openai.new(os.getenv("OPENAI_API_KEY"))
+
+-- Define available tools
+local tools = {
+  {
+    type = "function",
+    ["function"] = {
+      name = "get_weather",
+      description = "Get the current weather for a location",
+      parameters = {
+        type = "object",
+        properties = {
+          location = { type = "string", description = "City name" }
+        },
+        required = {"location"}
+      }
+    }
+  }
+}
+
+-- Create a chat session with tools
+local chat = client:new_chat_session({
+  model = "gpt-4.1",
+  tools = tools,
+  tool_choice = "auto"
+})
+
+-- Send a message that may trigger a tool call
+local res = chat:send("What's the weather in Paris?")
+
+-- When a tool call is requested, res is a table with tool_calls
+if type(res) == "table" and res.tool_calls then
+  for _, tool_call in ipairs(res.tool_calls) do
+    if tool_call["function"].name == "get_weather" then
+      local args = cjson.decode(tool_call["function"].arguments)
+
+      -- Execute the function and send the result back
+      local result = get_weather(args.location) -- your implementation
+      local final = chat:send({
+        role = "tool",
+        tool_call_id = tool_call.id,
+        content = cjson.encode(result)
+      })
+
+      print(final) -- The model's response incorporating the tool result
+    end
+  end
+end
+```
+
+Tool calling also works with streaming — tool call deltas are automatically
+aggregated across chunks, and the final response includes the complete
+`tool_calls` array.
 
 ## Appendix
 
