@@ -224,9 +224,7 @@ Sends a request to the `/chat/completions` endpoint.
 Returns HTTP status, response object, and output headers. The response object
 will be decoded from JSON if possible, otherwise the raw string is returned.
 
-##### `client:chat(messages, opts, chunk_callback)`
-
-**Deprecated**
+##### `client:chat(messages, opts, chunk_callback)` **Deprecated**
 
 Legacy alias for `create_chat_completion` with filtered streaming chunks. When streaming, the callback receives parsed chunks in the format `{content = "...", index = ...}` instead of raw event objects.
 
