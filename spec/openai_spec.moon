@@ -508,6 +508,37 @@ describe "OpenAI API Client", ->
 
       assert.same "25 USD is about 22.9 EUR.", tool_result
 
+    it "with per-request option overrides", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "create_chat_completion").invokes (c, messages, params) ->
+        assert.same {
+          {
+            role: "user"
+            content: "Hello"
+          }
+        }, messages
+
+        assert.same {
+          temperature: 0.75
+          tool_choice: "none"
+        }, params
+
+        200, {
+          usage: {}
+          choices: {
+            {
+              message: {
+                content: "Hi there"
+                role: "assistant"
+              }
+            }
+          }
+        }
+
+      chat = client\new_chat_session { temperature: .75, tool_choice: "auto" }
+      res = assert chat\send "Hello", { tool_choice: "none" }
+      assert.same "Hi there", res
 
   describe "streaming", ->
     before_each ->

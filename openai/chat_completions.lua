@@ -136,9 +136,14 @@ do
     last_message = function(self)
       return self.messages[#self.messages]
     end,
-    send = function(self, message, stream_callback)
-      if stream_callback == nil then
-        stream_callback = nil
+    send = function(self, message, opts)
+      if opts == nil then
+        opts = { }
+      end
+      if type(opts) == "function" then
+        opts = {
+          stream_callback = opts
+        }
       end
       if type(message) == "string" then
         message = {
@@ -147,16 +152,22 @@ do
         }
       end
       self:append_message(message)
-      return self:generate_response(true, stream_callback)
+      return self:generate_response(true, opts)
     end,
-    generate_response = function(self, append_response, stream_callback)
+    generate_response = function(self, append_response, opts)
       if append_response == nil then
         append_response = true
       end
-      if stream_callback == nil then
-        stream_callback = nil
+      if opts == nil then
+        opts = { }
       end
-      local status, response = self.client:chat(self.messages, {
+      if type(opts) == "function" then
+        opts = {
+          stream_callback = opts
+        }
+      end
+      local stream_callback = opts.stream_callback
+      local params = {
         function_call = self.opts.function_call,
         functions = self.functions,
         tools = self.tools,
@@ -166,7 +177,13 @@ do
         temperature = self.opts.temperature,
         stream = stream_callback and true or nil,
         response_format = self.opts.response_format
-      }, stream_callback)
+      }
+      for k, v in pairs(opts) do
+        if k ~= "stream_callback" then
+          params[k] = v
+        end
+      end
+      local status, response = self.client:chat(self.messages, params, stream_callback)
       if status ~= 200 then
         local err_msg = "Bad status: " .. tostring(status)
         do

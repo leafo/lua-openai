@@ -180,20 +180,28 @@ class ChatSession
 
   -- append a message to the history, then trigger a completion with generate_response
   -- message: message object to append to history
-  -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
-  send: (message, stream_callback=nil) =>
+  -- opts: table of per-request overrides (or a stream_callback function for backward compatibility)
+  send: (message, opts={}) =>
+    if type(opts) == "function"
+      opts = { stream_callback: opts }
+
     if type(message) == "string"
       message = {role: "user", content: message}
 
     @append_message message
-    @generate_response true, stream_callback
+    @generate_response true, opts
 
   -- call openai API to generate the next response for the stored chat history
   -- returns a string of the response
   -- append_response: should the response be appended to the chat history
-  -- stream_callback: provide a function to enable streaming output. function will receive each chunk as it's generated
-  generate_response: (append_response=true, stream_callback=nil) =>
-    status, response = @client\chat @messages, {
+  -- opts: table of per-request overrides (or a stream_callback function for backward compatibility)
+  generate_response: (append_response=true, opts={}) =>
+    if type(opts) == "function"
+      opts = { stream_callback: opts }
+
+    stream_callback = opts.stream_callback
+
+    params = {
       function_call: @opts.function_call -- override the default function call behavior
       functions: @functions
       tools: @tools
@@ -203,7 +211,13 @@ class ChatSession
       temperature: @opts.temperature
       stream: stream_callback and true or nil
       response_format: @opts.response_format
-    }, stream_callback
+    }
+
+    for k, v in pairs opts
+      if k != "stream_callback"
+        params[k] = v
+
+    status, response = @client\chat @messages, params, stream_callback
 
     if status != 200
       err_msg = "Bad status: #{status}"

@@ -434,7 +434,7 @@ Appends a message to the chat history.
 
 Returns the last message in the chat history.
 
-##### `chat:send(message, stream_callback=nil)`
+##### `chat:send(message, opts={})`
 
 Appends a message to the chat history and triggers a completion with
 `generate_response` and returns the response as a string. On failure, returns
@@ -446,7 +446,9 @@ a `role = "tool"` message (with `tool_call_id`) or a `role = "function"` message
 (legacy) to the `send` method.
 
 - `message`: A message object or a string.
-- `stream_callback`: (optional) A function to enable streaming output.
+- `opts`: (optional) A table of per-request overrides. Any key in this table will override the corresponding session default for this request only. For backward compatibility, a function can be passed instead of a table and will be treated as `{stream_callback = fn}`.
+  - `stream_callback`: A function to enable streaming output.
+  - Any other API parameter (e.g. `tool_choice`, `temperature`, `model`) to override the session default for this request.
 
 By providing a `stream_callback`, the request will run in streaming mode. The
 callback receives two arguments: a parsed chunk object and the raw event object.
@@ -465,16 +467,26 @@ chat:send("Hello", function(chunk, raw_event)
 end)
 ```
 
-##### `chat:generate_response(append_response, stream_callback=nil)`
+Per-request overrides example (e.g. changing `tool_choice` for a single request):
+
+```lua
+-- First request with tool_choice = "required"
+local res = chat:send("What is 2 + 2?", {tool_choice = "required"})
+
+-- Send tool result back with tool_choice = "none" to get a text response
+chat:send({role = "tool", tool_call_id = res.tool_calls[1].id, content = "4"}, {tool_choice = "none"})
+```
+
+##### `chat:generate_response(append_response, opts={})`
 
 Calls the OpenAI API to generate the next response for the stored chat history.
 Returns the response as a string. On failure, returns `nil`, an error message,
 and the raw request response.
 
 - `append_response`: Whether the response should be appended to the chat history (default: true).
-- `stream_callback`: (optional) A function to enable streaming output.
+- `opts`: (optional) A table of per-request overrides. For backward compatibility, a function can be passed and will be treated as `{stream_callback = fn}`.
 
-See `chat:send` for details on the `stream_callback`
+See `chat:send` for details on `opts`
 
 
 ## Using with Google Gemini
