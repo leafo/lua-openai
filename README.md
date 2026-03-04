@@ -396,7 +396,7 @@ created with `new_chat_session`
 The field `messages` stores an array of chat messages representing the chat
 history. Each message object must conform to the following structure:
 
-- `role`: A string representing the role of the message sender. It must be one of the following values: "system", "user", or "assistant".
+- `role`: A string representing the role of the message sender. It must be one of the following values: `"system"`, `"user"`, `"assistant"`, `"function"` (legacy), or `"tool"` (for tool call results).
 - `content`: A string containing the content of the message.
 - `name`: An optional string representing the name of the message sender. If not provided, it should be `nil`.
 
@@ -440,9 +440,10 @@ Appends a message to the chat history and triggers a completion with
 `generate_response` and returns the response as a string. On failure, returns
 `nil`, an error message, and the raw request response.
 
-If the response includes a `function_call`, then the entire message object is
-returned instead of a string of the content. You can return the result of the
-function by passing `role = "function"` object to the `send` method
+If the response includes `tool_calls` or a `function_call`, the entire message
+object is returned instead of a string. You can send the result back by passing
+a `role = "tool"` message (with `tool_call_id`) or a `role = "function"` message
+(legacy) to the `send` method.
 
 - `message`: A message object or a string.
 - `stream_callback`: (optional) A function to enable streaming output.
@@ -558,8 +559,9 @@ including chat completions, chat sessions, and streaming.
 
 OpenAI's [tool calling
 API](https://platform.openai.com/docs/guides/function-calling) allows models to
-request function calls during a conversation. The chat session manages the
-back-and-forth of tool calls and results automatically.
+request function calls during a conversation. When a tool call is requested, the
+response contains the tool call details instead of a text string. You can then
+execute the function and send the result back to continue the conversation.
 
 ```lua
 local openai = require("openai")
