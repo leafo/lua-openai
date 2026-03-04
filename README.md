@@ -163,22 +163,25 @@ print() -- print a newline
 
 ## Documentation
 
+```lua
+local openai = require("openai")
+```
+
 The `openai` module returns a table with the following fields:
 
-- `OpenAI`: A client for sending requests to the OpenAI API.
+- `OpenAI`: A class function to create a new OpenAI client instance
 - `new`: An alias to `OpenAI` to create a new instance of the OpenAI client
-- `ChatSession`: A class for managing chat sessions and history with the OpenAI API.
-- `VERSION = "1.5.0"`: The current version of the library
+- `VERSION = "1.7.0"`: The current version of the library
 
 ### Classes
 
 #### OpenAI
 
-This class initializes a new OpenAI API client.
+The OpenAI HTTP client.
 
 ##### `new(api_key, config)`
 
-Constructor for the OpenAI client.
+Constructor to create a new client instance
 
 - `api_key`: Your OpenAI API key.
 - `config`: An optional table of configuration options, with the following shape:
@@ -193,9 +196,10 @@ local client = openai.new(api_key)
 ##### `client:new_chat_session(...)`
 
 Creates a new [ChatSession](#chatsession) instance. A chat session is an
-abstraction over the chat completions API that stores the chat history. You can
-append new messages to the history and request completions to be generated from
-it. By default, the completion is appended to the history.
+abstraction over the chat completions API that stores the chat history, and
+other state like model choice and available tools. You can append new messages
+to the history and request completions to be generated from it. By default, the
+completion is appended to the history.
 
 ##### `client:new_responses_chat_session(...)`
 
@@ -221,6 +225,8 @@ Returns HTTP status, response object, and output headers. The response object
 will be decoded from JSON if possible, otherwise the raw string is returned.
 
 ##### `client:chat(messages, opts, chunk_callback)`
+
+**Deprecated**
 
 Legacy alias for `create_chat_completion` with filtered streaming chunks. When streaming, the callback receives parsed chunks in the format `{content = "...", index = ...}` instead of raw event objects.
 
