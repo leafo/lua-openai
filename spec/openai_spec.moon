@@ -748,6 +748,142 @@ describe "OpenAI API Client", ->
         second
       }, session.response_history
 
+    it "with per-request option overrides", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        assert.same "POST", method
+        assert.same "/responses", path
+        assert.same "required", payload.tool_choice
+        assert.same "gpt-4.1-mini", payload.model
+
+        200, {
+          id: "resp_opts"
+          object: "response"
+          model: "gpt-4.1-mini"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "Tool response" }
+              }
+            }
+          }
+          usage: {}
+          status: "completed"
+        }
+
+      session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
+      response = assert session\send "Use the tool", { tool_choice: "required" }
+      assert.same "Tool response", response\get_output_text!
+
+    it "send with function arg for backward compat", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload, _, stream_filter) ->
+        assert.truthy payload.stream
+        chunks = {
+          "data: {\"type\": \"response.output_text.delta\", \"delta\": \"Streamed\"}\n"
+          "data: {\"type\": \"response.completed\", \"response\": {\"id\": \"resp_compat\", \"object\": \"response\", \"output\": [{\"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"Streamed\"}]}]}}\n"
+          "data: [DONE]\n"
+        }
+
+        if stream_filter
+          for chunk in *chunks
+            stream_filter chunk
+
+        200, table.concat chunks
+
+      session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
+      received = {}
+      result = assert session\send "Hello", (chunk) ->
+        table.insert received, tostring(chunk)
+
+      assert.same "Streamed", result
+      assert.same {"Streamed"}, received
+
+    it "handles tool call round-trip", ->
+      client = OpenAI "test-api-key"
+
+      calls = 0
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        calls += 1
+        assert.same "POST", method
+        assert.same "/responses", path
+
+        if calls == 1
+          -- First call: user message, model responds with a function_call
+          assert.same "required", payload.tool_choice
+          assert.same "What is 1 + 2?", payload.input
+          return 200, {
+            id: "resp_tool"
+            object: "response"
+            model: "gpt-4.1-mini"
+            output: {
+              {
+                id: "fc_123"
+                type: "function_call"
+                name: "add_numbers"
+                arguments: '{"a":1,"b":2}'
+                call_id: "call_abc"
+                status: "completed"
+              }
+            }
+            usage: {}
+            status: "completed"
+          }
+        else
+          -- Second call: tool result, model responds with text
+          assert.same "none", payload.tool_choice
+          assert.same "resp_tool", payload.previous_response_id
+          assert.same {
+            {
+              type: "function_call_output"
+              call_id: "call_abc"
+              output: '{"sum":3}'
+            }
+          }, payload.input
+          return 200, {
+            id: "resp_final"
+            object: "response"
+            model: "gpt-4.1-mini"
+            output: {
+              {
+                type: "message"
+                role: "assistant"
+                content: {
+                  { type: "output_text", text: "The sum is 3." }
+                }
+              }
+            }
+            usage: {}
+            status: "completed"
+          }
+
+      session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
+
+      -- First send: get tool call back
+      response = assert session\send "What is 1 + 2?", { tool_choice: "required" }
+      assert.same "resp_tool", response.id
+      assert.same 1, #response.output
+      assert.same "function_call", response.output[1].type
+      assert.same "add_numbers", response.output[1].name
+      assert.same "call_abc", response.output[1].call_id
+
+      -- Second send: return tool result, get text back
+      final = assert session\send {
+        {
+          type: "function_call_output"
+          call_id: "call_abc"
+          output: '{"sum":3}'
+        }
+      }, { tool_choice: "none" }
+
+      assert.same "resp_final", final.id
+      assert.same "The sum is 3.", final\get_output_text!
+      assert.same 2, calls
+
     it "uses custom model in session", ->
       client = OpenAI "test-api-key"
 

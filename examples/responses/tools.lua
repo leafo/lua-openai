@@ -1,52 +1,44 @@
--- This shows how to use tool calls with the Responses API
+-- This shows how to use tool calls with the Responses API chat session,
+-- including per-request tool_choice overrides to control tool usage.
 
 local openai = require("openai")
 local cjson = require("cjson")
 
 local client = openai.new(os.getenv("OPENAI_API_KEY"))
 
--- Define a simple weather tool
+-- Define a simple addition tool
 local tools = {
   {
     type = "function",
-    name = "get_weather",
-    description = "Get the current weather for a location",
+    name = "add_numbers",
+    description = "Add two numbers and return the sum.",
     parameters = {
       type = "object",
       properties = {
-        location = {
-          type = "string",
-          description = "The city and state, e.g. San Francisco, CA"
-        },
-        unit = {
-          type = "string",
-          enum = {"celsius", "fahrenheit"},
-          description = "The temperature unit"
-        }
+        a = { type = "number" },
+        b = { type = "number" }
       },
-      required = {"location"}
+      required = { "a", "b" }
     }
   }
 }
 
--- Simulate getting weather data
-local function get_weather(location, unit)
-  unit = unit or "fahrenheit"
-  -- In a real app, you'd call a weather API here
+-- Simulate the tool locally
+local function add_numbers(a, b)
   return {
-    location = location,
-    temperature = unit == "celsius" and 22 or 72,
-    unit = unit,
-    conditions = "sunny"
+    sum = a + b,
+    explanation = ("The sum of %d and %d is %d."):format(a, b, a + b)
   }
 end
 
 local session = client:new_responses_chat_session({
-  tools = tools
+  tools = tools,
+  instructions = "You are a careful math assistant. Always call the provided tool to do arithmetic."
 })
 
-print("Asking about weather...")
-local response, err, raw = session:send("What's the weather like in San Francisco?")
+-- Send initial message, forcing a tool call
+print("Sending initial message...")
+local response, err, raw = session:send("What is 123 + 456? Respond with the total.", {tool_choice = "required"})
 
 if not response then
   print("Error:", err)
@@ -62,37 +54,34 @@ for _, output_item in ipairs(response.output or {}) do
   end
 end
 
-if #tool_calls > 0 then
-  print("Model requested tool calls:")
+if #tool_calls == 0 then
+  print("Error: expected a tool call response")
+  os.exit(1)
+end
 
-  for _, tool_call in ipairs(tool_calls) do
-    print("  - Function:", tool_call.name)
-    print("    Arguments:", cjson.encode(tool_call.arguments))
+print("Model requested tool calls:")
+for _, tool_call in ipairs(tool_calls) do
+  print("  - Function:", tool_call.name)
+  print("    Arguments:", tool_call.arguments)
 
-    -- Execute the tool
-    if tool_call.name == "get_weather" then
-      local args = tool_call.arguments
-      local result = get_weather(args.location, args.unit)
+  -- Execute the tool (arguments is a JSON string, decode it first)
+  local args = cjson.decode(tool_call.arguments)
+  local result = add_numbers(args.a, args.b)
+  print("    Result:", cjson.encode(result))
 
-      print("    Result:", cjson.encode(result))
+  -- Send the tool result back, forcing a text response (no more tool calls)
+  local final, err2 = session:send({
+    {
+      type = "function_call_output",
+      call_id = tool_call.call_id,
+      output = cjson.encode(result)
+    }
+  }, {tool_choice = "none"})
 
-      -- Send the tool result back
-      local follow_up, err2 = session:send({
-        {
-          type = "function_call_output",
-          call_id = tool_call.call_id,
-          output = cjson.encode(result)
-        }
-      })
-
-      if follow_up then
-        print("\nFinal response:", follow_up:get_output_text())
-      else
-        print("Error sending tool result:", err2)
-      end
-    end
+  if not final then
+    print("Error sending tool result:", err2)
+    os.exit(1)
   end
-else
-  -- No tool calls, just print the response
-  print("Response:", response:get_output_text())
+
+  print("\nFinal response:", final:get_output_text())
 end

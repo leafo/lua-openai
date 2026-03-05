@@ -86,14 +86,20 @@ local input_content_item = types.one_of({
     filename = types.string
   })
 })
-local input_format = types.string + types.array_of(types.partial({
+local function_call_output_item = types.partial({
+  type = types.literal("function_call_output"),
+  call_id = types.string,
+  output = types.string
+})
+local input_message = types.partial({
   role = types.one_of({
     "system",
     "user",
     "assistant"
   }),
   content = types.string + types.array_of(input_content_item)
-}))
+})
+local input_format = types.string + types.array_of(input_message + function_call_output_item)
 local content_item = types.one_of({
   types.partial({
     type = "output_text",
@@ -121,10 +127,19 @@ local response_message = types.partial({
   content = types.array_of(content_item),
   status = empty + types.string
 })
+local function_call_item = types.partial({
+  id = empty + types.string,
+  type = types.literal("function_call"),
+  name = types.string,
+  arguments = types.string,
+  call_id = types.string,
+  status = empty + types.string
+})
+local output_item = response_message + function_call_item
 local parse_responses_response = types.partial({
   id = types.string:tag("id"),
   object = empty + types.literal("response"):tag("object"),
-  output = types.array_of(response_message):tag("output"),
+  output = types.array_of(output_item):tag("output"),
   model = empty + types.string:tag("model"),
   usage = empty + types.table:tag("usage"),
   status = empty + types.string:tag("status")
@@ -133,14 +148,26 @@ local ResponsesChatSession
 do
   local _class_0
   local _base_0 = {
-    send = function(self, input, stream_callback)
-      if stream_callback == nil then
-        stream_callback = nil
+    send = function(self, input, opts)
+      if opts == nil then
+        opts = { }
       end
-      return self:create_response(input, {
+      if type(opts) == "function" then
+        opts = {
+          stream_callback = opts
+        }
+      end
+      local stream_callback = opts.stream_callback
+      local request_opts = {
         previous_response_id = self.current_response_id,
         stream = stream_callback and true or nil
-      }, stream_callback)
+      }
+      for k, v in pairs(opts) do
+        if k ~= "stream_callback" then
+          request_opts[k] = v
+        end
+      end
+      return self:create_response(input, request_opts, stream_callback)
     end,
     create_response = function(self, input, opts, stream_callback)
       if opts == nil then

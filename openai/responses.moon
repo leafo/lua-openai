@@ -54,11 +54,21 @@ input_content_item = types.one_of {
   types.partial { type: "input_file", file_data: types.string, filename: types.string } -- base64 encoded
 }
 
--- Schema for validating input parameter which can be string or array of messages
-input_format = types.string + types.array_of types.partial {
+-- Schema for validating function call output items (tool results sent back)
+function_call_output_item = types.partial {
+  type: types.literal("function_call_output")
+  call_id: types.string
+  output: types.string
+}
+
+-- Schema for input messages with a role
+input_message = types.partial {
   role: types.one_of {"system", "user", "assistant"}
   content: types.string + types.array_of(input_content_item)
 }
+
+-- Schema for validating input parameter which can be string, array of messages, or array of tool results
+input_format = types.string + types.array_of(input_message + function_call_output_item)
 
 -- Schema for validating response content items
 content_item = types.one_of {
@@ -90,11 +100,22 @@ response_message = types.partial {
   status: empty + types.string
 }
 
+function_call_item = types.partial {
+  id: empty + types.string
+  type: types.literal("function_call")
+  name: types.string
+  arguments: types.string
+  call_id: types.string
+  status: empty + types.string
+}
+
+output_item = response_message + function_call_item
+
 -- Schema for validating complete response structure
 parse_responses_response = types.partial {
   id: types.string\tag "id"
   object: empty + types.literal("response")\tag "object"
-  output: types.array_of(response_message)\tag "output"
+  output: types.array_of(output_item)\tag "output"
   model: empty + types.string\tag "model"
   usage: empty + types.table\tag "usage"
   status: empty + types.string\tag "status"
@@ -108,12 +129,24 @@ class ResponsesChatSession
 
   -- Send input and get response, maintaining conversation state
   -- input: string or array of message objects
-  -- stream_callback: optional function for streaming responses
-  send: (input, stream_callback=nil) =>
-    @create_response input, {
+  -- opts: optional table with stream_callback and/or per-request overrides
+  --   (passing a function directly is supported for backward compatibility)
+  send: (input, opts={}) =>
+    if type(opts) == "function"
+      opts = { stream_callback: opts }
+
+    stream_callback = opts.stream_callback
+
+    request_opts = {
       previous_response_id: @current_response_id
       stream: stream_callback and true or nil
-    }, stream_callback
+    }
+
+    for k, v in pairs opts
+      if k != "stream_callback"
+        request_opts[k] = v
+
+    @create_response input, request_opts, stream_callback
 
   -- Create a response using the Responses API
   -- input: string or array of message objects
