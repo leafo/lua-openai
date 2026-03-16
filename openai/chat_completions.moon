@@ -294,6 +294,9 @@ class ChatSession
       if append_response
         @append_message message
 
+      if message.tool_calls
+        return message
+
       return message.content or message
 
     out, err = parse_chat_response response

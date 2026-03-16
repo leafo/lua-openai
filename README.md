@@ -349,16 +349,21 @@ Constructor for the ResponsesChatSession.
   - `tools`: Array of tool definitions
   - `previous_response_id`: Resume from a previous response
 
-##### `session:send(input, stream_callback)`
+##### `session:send(input, opts={})`
 
 Sends input and returns the response, maintaining conversation state
 automatically.
 
 - `input`: A string or array of message objects.
-- `stream_callback`: Optional function for streaming responses.
+- `opts`: (optional) A table of per-request overrides. For backward
+  compatibility, a function can be passed instead and will be treated as
+  `{stream_callback = fn}`.
+  - `stream_callback`: Optional function for streaming responses.
+  - Any other Responses API parameter (e.g. `tool_choice`, `model`) to
+    override the session default for this request.
 
-Returns a response object on success (or accumulated text string when
-streaming). On failure, returns `nil`, an error message, and the raw response.
+Returns a response object on success, or accumulated text when streaming. On
+failure, returns `nil`, an error message, and the raw response.
 
 Response objects have helper methods:
 - `response:get_output_text()`: Extract all text content as a string
@@ -385,8 +390,8 @@ Lower-level method to create a response with additional options.
 - `opts`: Additional options (model, temperature, tools, previous_response_id, etc.)
 - `stream_callback`: Optional function for streaming responses.
 
-Returns a response object on success. On failure, returns `nil`, an error
-message, and the raw response.
+Returns a response object on success, or accumulated text when streaming. On
+failure, returns `nil`, an error message, and the raw response.
 
 #### ChatSession
 
@@ -724,4 +729,3 @@ else
   error("Unknown function: " .. name)
 end
 ```
-

@@ -279,6 +279,9 @@ do
         if append_response then
           self:append_message(message)
         end
+        if message.tool_calls then
+          return message
+        end
         return message.content or message
       end
       local out, err = parse_chat_response(response)

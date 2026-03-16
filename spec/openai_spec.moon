@@ -688,6 +688,50 @@ describe "OpenAI API Client", ->
       -- Verify response is appended to chat history
       assert.same response, chat.messages[#chat.messages]
 
+    it "returns the full assistant message when streaming includes text and tool calls", ->
+      package.loaded["socket.http"] = {
+        request: (opts={}) ->
+          chunks = {
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"content\": \"Let me check.\"}, \"index\": 0}]}\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"id\": \"call_tool\", \"type\": \"function\", \"function\": {\"name\": \"lookup_weather\"}}]}, \"index\": 0}]}\n"
+            "data: {\"object\": \"chat.completion.chunk\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"{\\\"location\\\":\\\"Paris\\\"}\"}}]}, \"index\": 0}]}\n"
+            "data: [DONE]"
+          }
+          for chunk in *chunks
+            opts.sink chunk
+          true, 200, {}
+      }
+
+      client = OpenAI "test-api-key"
+      chat = client\new_chat_session {
+        tools: {
+          {
+            type: "function"
+            ["function"]: {
+              name: "lookup_weather"
+              parameters: {}
+            }
+          }
+        }
+      }
+
+      response = assert chat\send "What's the weather in Paris?", (chunk) -> nil
+
+      assert.same {
+        role: "assistant"
+        content: "Let me check."
+        tool_calls: {
+          {
+            id: "call_tool"
+            type: "function"
+            ["function"]: {
+              name: "lookup_weather"
+              arguments: "{\"location\":\"Paris\"}"
+            }
+          }
+        }
+      }, response
+
   describe "responses", ->
     it "creates a response (raw API)", ->
       client = OpenAI "test-api-key"
