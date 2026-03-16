@@ -22,10 +22,10 @@ dependencies = {
 build = {
   type = "builtin",
   modules = {
+    ["openai"] = "openai/init.lua",
     ["openai.chat_completions"] = "openai/chat_completions.lua",
     ["openai.compat.gemini"] = "openai/compat/gemini.lua",
     ["openai.compat.openrouter"] = "openai/compat/openrouter.lua",
-    ["openai"] = "openai/init.lua",
     ["openai.responses"] = "openai/responses.lua",
     ["openai.sse"] = "openai/sse.lua",
   }
