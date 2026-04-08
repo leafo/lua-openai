@@ -117,8 +117,10 @@ describe "OpenAI API Client", ->
           }
         }
 
-      res = assert chat\send "Who are you?"
+      res, raw = assert chat\send "Who are you?"
       assert.same "I am you", res
+      assert.same {}, raw.usage
+      assert.same raw, chat.last_response
 
       -- verify that all the messages are stored
       assert.same {
@@ -163,7 +165,10 @@ describe "OpenAI API Client", ->
           }
         }
 
-      assert.same "You're welcome", chat\send "Thank you"
+      follow_up, raw = chat\send "Thank you"
+      assert.same "You're welcome", follow_up
+      assert.same {}, raw.usage
+      assert.same raw, chat.last_response
 
     it "handles error responses", ->
       client = OpenAI "test-api-key"
@@ -571,7 +576,7 @@ describe "OpenAI API Client", ->
       stream_callback = (chunk, raw) ->
         table.insert chunks_received, {chunk, raw}
 
-      response = assert chat\send("Why did the chicken cross the road?", stream_callback)
+      response, raw = assert chat\send("Why did the chicken cross the road?", stream_callback)
 
       -- Callback receives parsed chunk {content, index} and raw event object
       assert.same {
@@ -584,6 +589,8 @@ describe "OpenAI API Client", ->
       assert.same "This is ", tostring(chunks_received[1][1])
 
       assert.same "This is a chat response.", response
+      assert.same "string", type(raw)
+      assert.same raw, chat.last_response
 
     it "processes streaming chunks with create_chat_completion (raw)", ->
       client = OpenAI "test-api-key"

@@ -153,6 +153,7 @@ import create_stream_filter from require "openai.sse"
 class ChatSession
   new: (@client, @opts={}) =>
     @messages = {}
+    @last_response = nil
 
     if type(@opts.messages) == "table"
       @append_message unpack @opts.messages
@@ -218,6 +219,7 @@ class ChatSession
         params[k] = v
 
     status, response = @client\chat @messages, params, stream_callback
+    @last_response = response
 
     if status != 200
       err_msg = "Bad status: #{status}"
@@ -295,9 +297,9 @@ class ChatSession
         @append_message message
 
       if message.tool_calls
-        return message
+        return message, response
 
-      return message.content or message
+      return message.content or message, response
 
     out, err = parse_chat_response response
 
@@ -318,7 +320,7 @@ class ChatSession
       @append_message message
 
     -- response is missing for function_calls, so we return the entire message object
-    out.response or out.message
+    out.response or out.message, response
 
 {
   :ChatSession

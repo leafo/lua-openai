@@ -445,6 +445,11 @@ Appends a message to the chat history and triggers a completion with
 `generate_response` and returns the response as a string. On failure, returns
 `nil`, an error message, and the raw request response.
 
+On success, a second return value contains the raw API response. For
+non-streaming requests this is the decoded response object (including fields
+like `usage`); for streaming requests it is the raw SSE payload string. The
+latest raw response is also stored on `chat.last_response`.
+
 If the response includes `tool_calls` or a `function_call`, the entire message
 object is returned instead of a string. You can send the result back by passing
 a `role = "tool"` message (with `tool_call_id`) or a `role = "function"` message
@@ -487,6 +492,18 @@ chat:send({role = "tool", tool_call_id = res.tool_calls[1].id, content = "4"}, {
 Calls the OpenAI API to generate the next response for the stored chat history.
 Returns the response as a string. On failure, returns `nil`, an error message,
 and the raw request response.
+
+On success, a second return value contains the raw API response. For
+non-streaming requests this is the decoded response object, so you can inspect
+fields like `usage`:
+
+```lua
+local text, raw = chat:generate_response()
+print(text)
+print(raw.usage.total_tokens)
+```
+
+The latest raw response is also stored on `chat.last_response`.
 
 - `append_response`: Whether the response should be appended to the chat history (default: true).
 - `opts`: (optional) A table of per-request overrides. For backward compatibility, a function can be passed and will be treated as `{stream_callback = fn}`.

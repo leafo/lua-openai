@@ -184,6 +184,7 @@ do
         end
       end
       local status, response = self.client:chat(self.messages, params, stream_callback)
+      self.last_response = response
       if status ~= 200 then
         local err_msg = "Bad status: " .. tostring(status)
         do
@@ -280,9 +281,9 @@ do
           self:append_message(message)
         end
         if message.tool_calls then
-          return message
+          return message, response
         end
-        return message.content or message
+        return message.content or message, response
       end
       local out, err = parse_chat_response(response)
       if not (out) then
@@ -302,7 +303,7 @@ do
         end
         self:append_message(message)
       end
-      return out.response or out.message
+      return out.response or out.message, response
     end
   }
   _base_0.__index = _base_0
@@ -313,6 +314,7 @@ do
       end
       self.client, self.opts = client, opts
       self.messages = { }
+      self.last_response = nil
       if type(self.opts.messages) == "table" then
         self:append_message(unpack(self.opts.messages))
       end
