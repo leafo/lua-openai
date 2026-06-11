@@ -6,7 +6,7 @@ local client = Gemini.new(os.getenv("GEMINI_API_KEY"))
 
 -- Generate an embedding for a single text
 local status, response = client:embedding("Lua is the best programming language ever", {
-  model = "text-embedding-004"
+  model = "gemini-embedding-001"
 })
 
 if status == 200 then
@@ -28,7 +28,7 @@ local status2, response2 = client:embedding({
   "A fast auburn canine leaps above a sleepy hound",
   "Hello world in Lua"
 }, {
-  model = "text-embedding-004"
+  model = "gemini-embedding-001"
 })
 
 if status2 == 200 then

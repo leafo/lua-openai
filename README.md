@@ -41,8 +41,7 @@ local status, response = client:create_response({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-5.4",
-  temperature = 0.5
+  model = "gpt-5.4"
 })
 
 if status == 200 then
@@ -61,8 +60,7 @@ local status, response = client:create_chat_completion({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-5.4-mini",
-  temperature = 0.5
+  model = "gpt-5.4-mini"
 })
 
 if status == 200 then

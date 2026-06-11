@@ -29,8 +29,7 @@ local two_numbers = {
 }
 
 local chat = client:new_chat_session({
-  temperature = 0,
-  model = "gpt-4",
+  model = "gpt-5.4",
   messages = {
     {
       role = "system",

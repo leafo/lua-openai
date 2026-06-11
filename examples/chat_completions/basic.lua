@@ -5,8 +5,7 @@ local status, response = client:create_chat_completion({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-3.5-turbo", -- this is the default model
-  temperature = 0.5
+  model = "gpt-5.4" -- this is the default model
 })
 
 if status == 200 then

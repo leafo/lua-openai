@@ -34,7 +34,7 @@ local function add_numbers(a, b)
 end
 
 local chat = client:new_chat_session({
-  model = "gpt-4.1",
+  model = "gpt-5.4",
   tools = tools,
   tool_choice = "auto",
   messages = {
