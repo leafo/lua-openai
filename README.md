@@ -8,8 +8,10 @@ with OpenResty using
 This project implements both the classic Chat Completions API in addition to
 the modern Responses API.
 
-Compatibility clients for [Google Gemini](#using-with-google-gemini) and
-[OpenRouter](#using-with-openrouter) are also included.
+Compatibility clients for [Google Gemini](#using-with-google-gemini),
+[OpenRouter](#using-with-openrouter), and [other providers with
+OpenAI-compatible APIs](#using-with-other-providers) (Anthropic, DeepSeek,
+Mistral, Moonshot, Xiaomi MiMo) are also included.
 
 <details>
 <summary>AI Generated Disclaimer</summary>
@@ -588,6 +590,38 @@ local status, response = client:create_chat_completion({
 
 The `OpenRouter` client extends `OpenAI` and supports all the same methods
 including chat completions, chat sessions, and streaming.
+
+## Using with Other Providers
+
+Compatibility clients are also included for other providers that expose
+OpenAI-compatible endpoints. Each one extends the `OpenAI` class, so chat
+completions, chat sessions, and streaming all work the same way — only the
+API base URL and default model differ.
+
+| Provider | Module | Default model |
+|---|---|---|
+| [Anthropic](https://docs.anthropic.com/en/api/openai-sdk) | `openai.compat.anthropic` | `claude-sonnet-4-6` |
+| [DeepSeek](https://api-docs.deepseek.com/) | `openai.compat.deepseek` | `deepseek-chat` |
+| [Mistral](https://docs.mistral.ai/api/) | `openai.compat.mistral` | `mistral-large-3-25-12` |
+| [Moonshot AI (Kimi)](https://platform.moonshot.ai/) | `openai.compat.moonshot` | `kimi-k2.6` |
+| [Xiaomi MiMo](https://platform.xiaomimimo.com/) | `openai.compat.mimo` | `mimo-v2.5-pro` |
+
+```lua
+local DeepSeek = require("openai.compat.deepseek")
+local client = DeepSeek.new(os.getenv("DEEPSEEK_API_KEY"))
+
+local status, response = client:create_chat_completion({
+  {role = "user", content = "Hello, how are you?"}
+})
+
+if status == 200 then
+  print(response.choices[1].message.content)
+end
+```
+
+> Note: compatibility layers typically only cover the chat completions API.
+> Endpoints like images, moderation, or the Responses API may not be available
+> on these providers.
 
 ## Tool Calling
 
