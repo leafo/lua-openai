@@ -380,6 +380,9 @@ Constructor for the ResponsesChatSession.
   - `tools`: Array of tool definitions
   - `previous_response_id`: Resume from a previous response
   - `conversation`: A conversation ID to store state server-side, see [Conversations](#conversations)
+  - Any other Responses API parameter (e.g. `reasoning`, `temperature`, `text`)
+    is sent as a default with every request, and can be overridden per request
+    via the `opts` argument of `send`
 
 When `conversation` is set, the session sends it with every request instead of
 chaining responses with `previous_response_id` — the API rejects requests that

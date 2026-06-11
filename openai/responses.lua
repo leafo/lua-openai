@@ -182,14 +182,12 @@ do
       assert(input, "input must be provided")
       assert(input_format(input))
       local merged_opts = {
-        model = self.opts.model,
         conversation = self.conversation
       }
-      if self.opts.instructions then
-        merged_opts.instructions = self.opts.instructions
-      end
-      if self.opts.tools then
-        merged_opts.tools = self.opts.tools
+      for k, v in pairs(self.opts) do
+        if not (k == "conversation" or k == "previous_response_id") then
+          merged_opts[k] = v
+        end
       end
       if opts then
         for k, v in pairs(opts) do

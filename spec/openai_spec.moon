@@ -886,6 +886,41 @@ describe "OpenAI API Client", ->
       second = assert session\send "Hello again"
       assert.same "Reply 2", second\get_output_text!
 
+    it "forwards session-level API options on every request", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        assert.same "gpt-5.4", payload.model
+        assert.same { effort: "high" }, payload.reasoning
+        assert.same 0.25, payload.temperature
+        -- per-request override wins over the session default
+        assert.same "Be brief", payload.instructions
+
+        200, {
+          id: "resp_opts_forward"
+          object: "response"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "Forwarded" }
+              }
+            }
+          }
+          status: "completed"
+        }
+
+      session = client\new_responses_chat_session {
+        model: "gpt-5.4"
+        reasoning: { effort: "high" }
+        temperature: 0.25
+        instructions: "Be verbose"
+      }
+
+      response = assert session\send "Hello", { instructions: "Be brief" }
+      assert.same "Forwarded", response\get_output_text!
+
     it "per-request conversation override disables previous_response_id", ->
       client = OpenAI "test-api-key"
 

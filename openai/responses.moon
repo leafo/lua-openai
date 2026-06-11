@@ -169,15 +169,15 @@ class ResponsesChatSession
     assert input_format input
 
     merged_opts = {
-      model: @opts.model
       conversation: @conversation
     }
 
-    if @opts.instructions
-      merged_opts.instructions = @opts.instructions
-
-    if @opts.tools
-      merged_opts.tools = @opts.tools
+    -- forward all session-level API options (model, instructions, tools,
+    -- reasoning, temperature, etc.) as defaults for every request, excluding
+    -- keys that hold session state and are handled separately
+    for k, v in pairs @opts
+      unless k == "conversation" or k == "previous_response_id"
+        merged_opts[k] = v
 
     if opts
       for k, v in pairs opts
