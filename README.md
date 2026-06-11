@@ -351,11 +351,96 @@ Deletes a file.
 
 Returns HTTP status, response object, and output headers.
 
+##### `client:upload_file(params)`
+
+Uploads a file via `multipart/form-data` to the `/files` endpoint.
+
+- `params`: A table with the following fields:
+  - `file`: A file table: `{filename = "data.jsonl", content = "...", content_type = "..."}` (`content_type` is optional, defaults to `application/octet-stream`)
+  - `purpose`: The intended use of the file, eg. `"batch"`, `"fine-tune"`, `"assistants"`, `"user_data"`, `"vision"`, `"evals"`
+  - Any other parameters are passed through as form fields
+
+```lua
+local status, file = client:upload_file({
+  purpose = "batch",
+  file = {
+    filename = "requests.jsonl",
+    content = jsonl_content
+  }
+})
+```
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:file_content(file_id)`
+
+Downloads the contents of an uploaded file from `/files/{id}/content`. The
+response is the raw file body as a string (unless it's valid JSON, in which
+case it is decoded).
+
+- `file_id`: The ID of the file to download
+
+Returns HTTP status, response body, and output headers.
+
+##### `client:audio_transcription(params)`
+
+Transcribes audio via `multipart/form-data` to the `/audio/transcriptions` endpoint.
+
+- `params`: A table with the following fields:
+  - `file`: A file table: `{filename = "audio.mp3", content = "...", content_type = "..."}`
+  - `model`: The transcription model to use, eg. `"gpt-4o-transcribe"`
+  - Any other transcription parameters (eg. `language`, `response_format`) are passed through as form fields
+
+Returns HTTP status, response object, and output headers.
+
+##### Batches
+
+The [Batch API](https://platform.openai.com/docs/api-reference/batch) runs
+large numbers of requests asynchronously at reduced cost. Upload a `.jsonl`
+file of requests with `upload_file` (using `purpose = "batch"`), then create a
+batch referencing it:
+
+```lua
+local status, file = client:upload_file({
+  purpose = "batch",
+  file = { filename = "requests.jsonl", content = jsonl_content }
+})
+
+local status, batch = client:create_batch({
+  input_file_id = file.id,
+  endpoint = "/v1/responses"
+})
+
+-- poll until complete, then download results
+local status, batch = client:batch(batch.id)
+if batch.status == "completed" then
+  local status, results = client:file_content(batch.output_file_id)
+end
+```
+
+All of the following return HTTP status, response object, and output headers:
+
+- `client:create_batch(params)`: Creates a batch. `params` requires `input_file_id` and `endpoint`; `completion_window` defaults to `"24h"`, and `metadata` is optional.
+- `client:batch(batch_id)`: Retrieves a batch (poll this to check progress).
+- `client:cancel_batch(batch_id)`: Cancels an in-progress batch.
+- `client:batches(params)`: Lists batches. `params` is an optional table of query parameters (eg. `{limit = 10, after = "batch_id"}`).
+
 ##### `client:image_generation(params)`
 
 Sends a request to the `/images/generations` endpoint to generate images.
 
 - `params`: Parameters for image generation (prompt, n, size, etc.) https://platform.openai.com/docs/api-reference/images/create
+
+Returns HTTP status, response object, and output headers.
+
+##### `client:image_edit(params)`
+
+Edits or extends images via `multipart/form-data` to the `/images/edits` endpoint.
+
+- `params`: A table with the following fields:
+  - `image`: A file table `{filename = "in.png", content = "...", content_type = "image/png"}`, or an array of file tables to provide multiple input images
+  - `prompt`: A text description of the desired edit
+  - Any other edit parameters (eg. `model`, `mask`, `n`, `size`) are passed through as form fields https://platform.openai.com/docs/api-reference/images/createEdit
 
 Returns HTTP status, response object, and output headers.
 

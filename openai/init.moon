@@ -8,6 +8,14 @@ unpack = table.unpack or unpack
 import types from require "tableshape"
 
 parse_url = require("socket.url").parse
+url_escape = require("socket.url").escape
+
+encode_query_params = (params) ->
+  query = {}
+  for k, v in pairs params
+    table.insert query, "#{url_escape tostring k}=#{url_escape tostring v}"
+  table.sort query
+  table.concat query, "&"
 
 class OpenAI
   api_base: "https://api.openai.com/v1"
@@ -132,6 +140,62 @@ class OpenAI
   delete_file: (file_id) =>
     @_request "DELETE", "/files/#{file_id}"
 
+  -- Upload a file
+  -- params: {
+  --   file: {filename: string, content: string, content_type: optional string}
+  --   purpose: string, eg. "batch", "fine-tune", "assistants", "user_data", "vision", "evals"
+  -- }
+  upload_file: (params) =>
+    assert type(params) == "table", "params must be a table"
+    assert params.file, "file is required"
+    assert params.purpose, "purpose is required"
+    @_multipart_request "POST", "/files", params
+
+  -- Download the contents of an uploaded file (response is the raw file body)
+  file_content: (file_id) =>
+    assert file_id, "file_id is required"
+    @_request "GET", "/files/#{file_id}/content"
+
+  -- Transcribe audio: POST /audio/transcriptions
+  -- params: {
+  --   file: {filename: string, content: string, content_type: optional string}
+  --   model: string, eg. "gpt-4o-transcribe"
+  --   ... any other transcription parameters, eg. language, response_format
+  -- }
+  audio_transcription: (params) =>
+    assert type(params) == "table", "params must be a table"
+    assert params.file, "file is required"
+    assert params.model, "model is required"
+    @_multipart_request "POST", "/audio/transcriptions", params
+
+  -- Batch API: run large numbers of requests asynchronously at reduced cost
+  -- params: {input_file_id: string, endpoint: string, completion_window: optional, metadata: optional}
+  create_batch: (params) =>
+    assert type(params) == "table", "params must be a table"
+    assert params.input_file_id, "input_file_id is required"
+    assert params.endpoint, "endpoint is required"
+
+    payload = { completion_window: "24h" }
+    for k, v in pairs params
+      payload[k] = v
+
+    @_request "POST", "/batches", payload
+
+  batch: (batch_id) =>
+    assert batch_id, "batch_id is required"
+    @_request "GET", "/batches/#{batch_id}"
+
+  cancel_batch: (batch_id) =>
+    assert batch_id, "batch_id is required"
+    @_request "POST", "/batches/#{batch_id}/cancel"
+
+  -- params: optional query parameters, eg. {limit: 10, after: "batch_id"}
+  batches: (params) =>
+    path = "/batches"
+    if params and next params
+      path ..= "?#{encode_query_params params}"
+    @_request "GET", path
+
   assistants: =>
     @_request "GET", "/assistants", nil, {
       "OpenAI-Beta": "assistants=v1"
@@ -154,6 +218,18 @@ class OpenAI
 
   image_generation: (params) =>
     @_request "POST", "/images/generations", params
+
+  -- Edit an image: POST /images/edits
+  -- params: {
+  --   image: file table {filename:, content:, content_type:} or array of file tables
+  --   prompt: string
+  --   ... any other edit parameters, eg. model, n, size
+  -- }
+  image_edit: (params) =>
+    assert type(params) == "table", "params must be a table"
+    assert params.image, "image is required"
+    assert params.prompt, "prompt is required"
+    @_multipart_request "POST", "/images/edits", params
 
   -- Get a stored response by ID
   -- Returns: status, response, headers (raw result from _request)
@@ -219,12 +295,7 @@ class OpenAI
     path = "/conversations/#{conversation_id}/items"
 
     if params and next params
-      escape = require("socket.url").escape
-      query = {}
-      for k, v in pairs params
-        table.insert query, "#{escape tostring k}=#{escape tostring v}"
-      table.sort query
-      path ..= "?#{table.concat query, "&"}"
+      path ..= "?#{encode_query_params params}"
 
     @_request "GET", path
 
@@ -251,7 +322,11 @@ class OpenAI
 
     url = @api_base .. path
 
-    body = if payload
+    -- string payloads are pre-encoded bodies (eg. multipart) sent as-is,
+    -- pair with a Content-Type override in more_headers
+    body = if type(payload) == "string"
+      payload
+    elseif payload
       cjson.encode payload
 
     headers = {
@@ -289,6 +364,23 @@ class OpenAI
     response = table.concat out
     pcall -> response = cjson.decode response
     status, response, out_headers
+
+  -- issue a request with params encoded as a multipart/form-data body
+  _multipart_request: (method, path, params, more_headers) =>
+    import encode_multipart, multipart_boundary from require "openai.multipart"
+
+    boundary = multipart_boundary params
+    body = encode_multipart params, boundary
+
+    headers = {
+      "Content-Type": "multipart/form-data; boundary=#{boundary}"
+    }
+
+    if more_headers
+      for k, v in pairs more_headers
+        headers[k] = v
+
+    @_request method, path, body, headers
 
   -- get the http client that will issue the request
   get_http: =>

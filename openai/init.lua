@@ -5,6 +5,16 @@ local unpack = table.unpack or unpack
 local types
 types = require("tableshape").types
 local parse_url = require("socket.url").parse
+local url_escape = require("socket.url").escape
+local encode_query_params
+encode_query_params = function(params)
+  local query = { }
+  for k, v in pairs(params) do
+    table.insert(query, tostring(url_escape(tostring(k))) .. "=" .. tostring(url_escape(tostring(v))))
+  end
+  table.sort(query)
+  return table.concat(query, "&")
+end
 local OpenAI
 do
   local _class_0
@@ -121,6 +131,49 @@ do
     delete_file = function(self, file_id)
       return self:_request("DELETE", "/files/" .. tostring(file_id))
     end,
+    upload_file = function(self, params)
+      assert(type(params) == "table", "params must be a table")
+      assert(params.file, "file is required")
+      assert(params.purpose, "purpose is required")
+      return self:_multipart_request("POST", "/files", params)
+    end,
+    file_content = function(self, file_id)
+      assert(file_id, "file_id is required")
+      return self:_request("GET", "/files/" .. tostring(file_id) .. "/content")
+    end,
+    audio_transcription = function(self, params)
+      assert(type(params) == "table", "params must be a table")
+      assert(params.file, "file is required")
+      assert(params.model, "model is required")
+      return self:_multipart_request("POST", "/audio/transcriptions", params)
+    end,
+    create_batch = function(self, params)
+      assert(type(params) == "table", "params must be a table")
+      assert(params.input_file_id, "input_file_id is required")
+      assert(params.endpoint, "endpoint is required")
+      local payload = {
+        completion_window = "24h"
+      }
+      for k, v in pairs(params) do
+        payload[k] = v
+      end
+      return self:_request("POST", "/batches", payload)
+    end,
+    batch = function(self, batch_id)
+      assert(batch_id, "batch_id is required")
+      return self:_request("GET", "/batches/" .. tostring(batch_id))
+    end,
+    cancel_batch = function(self, batch_id)
+      assert(batch_id, "batch_id is required")
+      return self:_request("POST", "/batches/" .. tostring(batch_id) .. "/cancel")
+    end,
+    batches = function(self, params)
+      local path = "/batches"
+      if params and next(params) then
+        path = path .. "?" .. tostring(encode_query_params(params))
+      end
+      return self:_request("GET", path)
+    end,
     assistants = function(self)
       return self:_request("GET", "/assistants", nil, {
         ["OpenAI-Beta"] = "assistants=v1"
@@ -143,6 +196,12 @@ do
     end,
     image_generation = function(self, params)
       return self:_request("POST", "/images/generations", params)
+    end,
+    image_edit = function(self, params)
+      assert(type(params) == "table", "params must be a table")
+      assert(params.image, "image is required")
+      assert(params.prompt, "prompt is required")
+      return self:_multipart_request("POST", "/images/edits", params)
     end,
     response = function(self, response_id)
       assert(response_id, "response_id is required")
@@ -199,13 +258,7 @@ do
       assert(conversation_id, "conversation_id is required")
       local path = "/conversations/" .. tostring(conversation_id) .. "/items"
       if params and next(params) then
-        local escape = require("socket.url").escape
-        local query = { }
-        for k, v in pairs(params) do
-          table.insert(query, tostring(escape(tostring(k))) .. "=" .. tostring(escape(tostring(v))))
-        end
-        table.sort(query)
-        path = path .. "?" .. tostring(table.concat(query, "&"))
+        path = path .. "?" .. tostring(encode_query_params(params))
       end
       return self:_request("GET", path)
     end,
@@ -231,7 +284,9 @@ do
       assert(method, "missing method")
       local url = self.api_base .. path
       local body
-      if payload then
+      if type(payload) == "string" then
+        body = payload
+      elseif payload then
         body = cjson.encode(payload)
       end
       local headers = {
@@ -269,6 +324,24 @@ do
         response = cjson.decode(response)
       end)
       return status, response, out_headers
+    end,
+    _multipart_request = function(self, method, path, params, more_headers)
+      local encode_multipart, multipart_boundary
+      do
+        local _obj_0 = require("openai.multipart")
+        encode_multipart, multipart_boundary = _obj_0.encode_multipart, _obj_0.multipart_boundary
+      end
+      local boundary = multipart_boundary(params)
+      local body = encode_multipart(params, boundary)
+      local headers = {
+        ["Content-Type"] = "multipart/form-data; boundary=" .. tostring(boundary)
+      }
+      if more_headers then
+        for k, v in pairs(more_headers) do
+          headers[k] = v
+        end
+      end
+      return self:_request(method, path, body, headers)
     end,
     get_http = function(self)
       if not (self.config.http_provider) then

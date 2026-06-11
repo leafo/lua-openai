@@ -1305,3 +1305,158 @@ describe "OpenAI API Client", ->
         { "GET", "/conversations/conv_123/items/item_456" }
         { "DELETE", "/conversations/conv_123/items/item_456" }
       }, requests
+
+  describe "multipart", ->
+    import encode_multipart, multipart_boundary from require "openai.multipart"
+
+    it "encodes fields and files", ->
+      body = encode_multipart {
+        purpose: "batch"
+        file: { filename: "data.jsonl", content: '{"custom_id":"1"}' }
+      }, "BOUNDARY"
+
+      assert.same table.concat({
+        "--BOUNDARY\r\n"
+        'Content-Disposition: form-data; name="file"; filename="data.jsonl"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+        '{"custom_id":"1"}\r\n'
+        "--BOUNDARY\r\n"
+        'Content-Disposition: form-data; name="purpose"\r\n\r\n'
+        "batch\r\n"
+        "--BOUNDARY--\r\n"
+      }), body
+
+    it "encodes array of files with name[] convention", ->
+      body = encode_multipart {
+        image: {
+          { filename: "a.png", content: "PNGA", content_type: "image/png" }
+          { filename: "b.png", content: "PNGB", content_type: "image/png" }
+        }
+      }, "BOUNDARY"
+
+      assert.same table.concat({
+        "--BOUNDARY\r\n"
+        'Content-Disposition: form-data; name="image[]"; filename="a.png"\r\n'
+        "Content-Type: image/png\r\n\r\n"
+        "PNGA\r\n"
+        "--BOUNDARY\r\n"
+        'Content-Disposition: form-data; name="image[]"; filename="b.png"\r\n'
+        "Content-Type: image/png\r\n\r\n"
+        "PNGB\r\n"
+        "--BOUNDARY--\r\n"
+      }), body
+
+    it "picks a boundary not contained in the content", ->
+      assert.same "lua-openai-boundary", multipart_boundary {
+        file: { filename: "a.txt", content: "hello world" }
+      }
+
+      assert.same "lua-openai-boundary-1", multipart_boundary {
+        file: { filename: "a.txt", content: "contains --lua-openai-boundary inside" }
+      }
+
+    it "uploads a file through the http layer", ->
+      ltn12 = require "ltn12"
+
+      local captured
+      package.loaded["socket.http"] = {
+        request: (opts) ->
+          captured = opts
+          buf = {}
+          if opts.source
+            sink = ltn12.sink.table buf
+            ltn12.pump.all opts.source, sink
+          captured.body = table.concat buf
+          opts.sink cjson.encode { id: "file-abc", object: "file", purpose: "batch" }
+          true, 200, {}
+      }
+
+      client = OpenAI "test-api-key"
+      status, response = client\upload_file {
+        purpose: "batch"
+        file: { filename: "data.jsonl", content: '{"custom_id":"1"}' }
+      }
+
+      assert.same 200, status
+      assert.same "file-abc", response.id
+      assert.same "https://api.openai.com/v1/files", captured.url
+      assert.same "POST", captured.method
+
+      boundary = assert captured.headers["Content-Type"]\match "^multipart/form%-data; boundary=(.+)$"
+
+      assert.same table.concat({
+        "--#{boundary}\r\n"
+        'Content-Disposition: form-data; name="file"; filename="data.jsonl"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+        '{"custom_id":"1"}\r\n'
+        "--#{boundary}\r\n"
+        'Content-Disposition: form-data; name="purpose"\r\n\r\n'
+        "batch\r\n"
+        "--#{boundary}--\r\n"
+      }), captured.body
+
+      assert.same #captured.body, captured.headers["Content-Length"]
+
+    it "calls multipart endpoints with expected paths", ->
+      client = OpenAI "test-api-key"
+
+      requests = {}
+      stub(client, "_multipart_request").invokes (c, method, path, params) ->
+        table.insert requests, { method, path, params }
+        200, {}
+
+      file = { filename: "audio.mp3", content: "MP3DATA" }
+
+      client\audio_transcription { :file, model: "gpt-4o-transcribe" }
+      client\image_edit {
+        image: { filename: "in.png", content: "PNG" }
+        prompt: "make it blue"
+      }
+
+      assert.same {
+        { "POST", "/audio/transcriptions", { :file, model: "gpt-4o-transcribe" } }
+        { "POST", "/images/edits", {
+          image: { filename: "in.png", content: "PNG" }
+          prompt: "make it blue"
+        } }
+      }, requests
+
+  describe "batches", ->
+    it "calls batch endpoints", ->
+      client = OpenAI "test-api-key"
+
+      requests = {}
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        table.insert requests, { method, path, payload }
+        200, {}
+
+      client\create_batch {
+        input_file_id: "file-abc"
+        endpoint: "/v1/responses"
+      }
+      client\create_batch {
+        input_file_id: "file-abc"
+        endpoint: "/v1/responses"
+        completion_window: "12h"
+      }
+      client\batch "batch_123"
+      client\cancel_batch "batch_123"
+      client\batches!
+      client\batches { limit: 5, after: "batch_99" }
+
+      assert.same {
+        { "POST", "/batches", {
+          input_file_id: "file-abc"
+          endpoint: "/v1/responses"
+          completion_window: "24h"
+        } }
+        { "POST", "/batches", {
+          input_file_id: "file-abc"
+          endpoint: "/v1/responses"
+          completion_window: "12h"
+        } }
+        { "GET", "/batches/batch_123" }
+        { "POST", "/batches/batch_123/cancel" }
+        { "GET", "/batches" }
+        { "GET", "/batches?after=batch_99&limit=5" }
+      }, requests
