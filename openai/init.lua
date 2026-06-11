@@ -180,6 +180,52 @@ do
       end
       return self:_request("POST", "/responses", payload, nil, stream_filter)
     end,
+    create_conversation = function(self, opts)
+      return self:_request("POST", "/conversations", opts)
+    end,
+    conversation = function(self, conversation_id)
+      assert(conversation_id, "conversation_id is required")
+      return self:_request("GET", "/conversations/" .. tostring(conversation_id))
+    end,
+    update_conversation = function(self, conversation_id, opts)
+      assert(conversation_id, "conversation_id is required")
+      return self:_request("POST", "/conversations/" .. tostring(conversation_id), opts)
+    end,
+    delete_conversation = function(self, conversation_id)
+      assert(conversation_id, "conversation_id is required")
+      return self:_request("DELETE", "/conversations/" .. tostring(conversation_id))
+    end,
+    conversation_items = function(self, conversation_id, params)
+      assert(conversation_id, "conversation_id is required")
+      local path = "/conversations/" .. tostring(conversation_id) .. "/items"
+      if params and next(params) then
+        local escape = require("socket.url").escape
+        local query = { }
+        for k, v in pairs(params) do
+          table.insert(query, tostring(escape(tostring(k))) .. "=" .. tostring(escape(tostring(v))))
+        end
+        table.sort(query)
+        path = path .. "?" .. tostring(table.concat(query, "&"))
+      end
+      return self:_request("GET", path)
+    end,
+    add_conversation_items = function(self, conversation_id, items)
+      assert(conversation_id, "conversation_id is required")
+      assert(items, "items is required")
+      return self:_request("POST", "/conversations/" .. tostring(conversation_id) .. "/items", {
+        items = items
+      })
+    end,
+    conversation_item = function(self, conversation_id, item_id)
+      assert(conversation_id, "conversation_id is required")
+      assert(item_id, "item_id is required")
+      return self:_request("GET", "/conversations/" .. tostring(conversation_id) .. "/items/" .. tostring(item_id))
+    end,
+    delete_conversation_item = function(self, conversation_id, item_id)
+      assert(conversation_id, "conversation_id is required")
+      assert(item_id, "item_id is required")
+      return self:_request("DELETE", "/conversations/" .. tostring(conversation_id) .. "/items/" .. tostring(item_id))
+    end,
     _request = function(self, method, path, payload, more_headers, stream_fn)
       assert(path, "missing path")
       assert(method, "missing method")

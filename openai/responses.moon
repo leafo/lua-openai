@@ -134,6 +134,12 @@ class ResponsesChatSession
     @response_history = {}
     @current_response_id = @opts.previous_response_id
 
+    -- server-side conversation state: a conversation id string (or {id: ...}
+    -- object) from the Conversations API. When set, it's passed as the
+    -- conversation parameter instead of chaining with previous_response_id,
+    -- as the two are mutually exclusive
+    @conversation = @opts.conversation
+
   -- Send input and get response, maintaining conversation state
   -- input: string or array of message objects
   -- opts: optional table with stream_callback and/or per-request overrides
@@ -145,7 +151,6 @@ class ResponsesChatSession
     stream_callback = opts.stream_callback
 
     request_opts = {
-      previous_response_id: @current_response_id
       stream: stream_callback and true or nil
     }
 
@@ -165,7 +170,7 @@ class ResponsesChatSession
 
     merged_opts = {
       model: @opts.model
-      previous_response_id: @current_response_id
+      conversation: @conversation
     }
 
     if @opts.instructions
@@ -177,6 +182,12 @@ class ResponsesChatSession
     if opts
       for k, v in pairs opts
         merged_opts[k] = v
+
+    -- chain from the previous response only when not using a server-side
+    -- conversation, and when not explicitly overridden: the API rejects
+    -- requests that set both conversation and previous_response_id
+    unless merged_opts.conversation or merged_opts.previous_response_id
+      merged_opts.previous_response_id = @current_response_id
 
     if stream_callback
       merged_opts.stream = merged_opts.stream or true

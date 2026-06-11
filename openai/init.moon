@@ -193,6 +193,57 @@ class OpenAI
 
     @_request "POST", "/responses", payload, nil, stream_filter
 
+  -- Conversations API: server-side conversation state for the Responses API
+  -- https://platform.openai.com/docs/api-reference/conversations
+
+  -- opts: optional table, eg. {items: {...}, metadata: {...}}
+  create_conversation: (opts) =>
+    @_request "POST", "/conversations", opts
+
+  conversation: (conversation_id) =>
+    assert conversation_id, "conversation_id is required"
+    @_request "GET", "/conversations/#{conversation_id}"
+
+  -- opts: fields to update, eg. {metadata: {...}}
+  update_conversation: (conversation_id, opts) =>
+    assert conversation_id, "conversation_id is required"
+    @_request "POST", "/conversations/#{conversation_id}", opts
+
+  delete_conversation: (conversation_id) =>
+    assert conversation_id, "conversation_id is required"
+    @_request "DELETE", "/conversations/#{conversation_id}"
+
+  -- params: optional query parameters, eg. {limit: 10, order: "asc", after: "item_id"}
+  conversation_items: (conversation_id, params) =>
+    assert conversation_id, "conversation_id is required"
+    path = "/conversations/#{conversation_id}/items"
+
+    if params and next params
+      escape = require("socket.url").escape
+      query = {}
+      for k, v in pairs params
+        table.insert query, "#{escape tostring k}=#{escape tostring v}"
+      table.sort query
+      path ..= "?#{table.concat query, "&"}"
+
+    @_request "GET", path
+
+  -- items: array of item objects to append to the conversation
+  add_conversation_items: (conversation_id, items) =>
+    assert conversation_id, "conversation_id is required"
+    assert items, "items is required"
+    @_request "POST", "/conversations/#{conversation_id}/items", {:items}
+
+  conversation_item: (conversation_id, item_id) =>
+    assert conversation_id, "conversation_id is required"
+    assert item_id, "item_id is required"
+    @_request "GET", "/conversations/#{conversation_id}/items/#{item_id}"
+
+  delete_conversation_item: (conversation_id, item_id) =>
+    assert conversation_id, "conversation_id is required"
+    assert item_id, "item_id is required"
+    @_request "DELETE", "/conversations/#{conversation_id}/items/#{item_id}"
+
   -- Responses API methods
   _request: (method, path, payload, more_headers, stream_fn) =>
     assert path, "missing path"

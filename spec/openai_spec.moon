@@ -846,6 +846,73 @@ describe "OpenAI API Client", ->
       response = assert session\send "Use the tool", { tool_choice: "required" }
       assert.same "Tool response", response\get_output_text!
 
+    it "uses conversation parameter in a session", ->
+      client = OpenAI "test-api-key"
+
+      build_response = (id, text) ->
+        {
+          id: id
+          object: "response"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: text }
+              }
+            }
+          }
+          status: "completed"
+        }
+
+      calls = 0
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        calls += 1
+        assert.same "POST", method
+        assert.same "/responses", path
+
+        -- conversation is sent in place of previous_response_id on every request
+        assert.same "conv_123", payload.conversation
+        assert.is_nil payload.previous_response_id
+
+        200, build_response "resp_#{calls}", "Reply #{calls}"
+
+      session = client\new_responses_chat_session { conversation: "conv_123" }
+
+      first = assert session\send "Hello"
+      assert.same "Reply 1", first\get_output_text!
+
+      -- second send must still not chain with previous_response_id
+      second = assert session\send "Hello again"
+      assert.same "Reply 2", second\get_output_text!
+
+    it "per-request conversation override disables previous_response_id", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        assert.same "conv_override", payload.conversation
+        assert.is_nil payload.previous_response_id
+
+        200, {
+          id: "resp_override"
+          object: "response"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "Override reply" }
+              }
+            }
+          }
+          status: "completed"
+        }
+
+      -- session that would otherwise chain from a previous response
+      session = client\new_responses_chat_session { previous_response_id: "resp_prior" }
+      response = assert session\send "Hello", { conversation: "conv_override" }
+      assert.same "Override reply", response\get_output_text!
+
     it "accepts developer role input messages", ->
       client = OpenAI "test-api-key"
 
@@ -1166,3 +1233,40 @@ describe "OpenAI API Client", ->
 
       -- Verify chunk has __tostring metamethod
       assert.same "Hello", tostring(received[1][1])
+
+  describe "conversations", ->
+    it "calls conversation endpoints", ->
+      client = OpenAI "test-api-key"
+
+      requests = {}
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        table.insert requests, { method, path, payload }
+        200, {}
+
+      client\create_conversation { metadata: { topic: "demo" } }
+      client\conversation "conv_123"
+      client\update_conversation "conv_123", { metadata: { topic: "updated" } }
+      client\delete_conversation "conv_123"
+      client\conversation_items "conv_123"
+      client\conversation_items "conv_123", { limit: 2, order: "asc" }
+      client\add_conversation_items "conv_123", {
+        { type: "message", role: "user", content: "hi" }
+      }
+      client\conversation_item "conv_123", "item_456"
+      client\delete_conversation_item "conv_123", "item_456"
+
+      assert.same {
+        { "POST", "/conversations", { metadata: { topic: "demo" } } }
+        { "GET", "/conversations/conv_123" }
+        { "POST", "/conversations/conv_123", { metadata: { topic: "updated" } } }
+        { "DELETE", "/conversations/conv_123" }
+        { "GET", "/conversations/conv_123/items" }
+        { "GET", "/conversations/conv_123/items?limit=2&order=asc" }
+        { "POST", "/conversations/conv_123/items", {
+          items: {
+            { type: "message", role: "user", content: "hi" }
+          }
+        } }
+        { "GET", "/conversations/conv_123/items/item_456" }
+        { "DELETE", "/conversations/conv_123/items/item_456" }
+      }, requests

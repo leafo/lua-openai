@@ -214,6 +214,7 @@ server-side via `previous_response_id`.
   - `instructions`: System instructions for the conversation
   - `tools`: Array of tool definitions
   - `previous_response_id`: Resume from a previous response
+  - `conversation`: A conversation ID (eg. from `client:create_conversation()`) to store state server-side. Mutually exclusive with `previous_response_id`
 
 ##### `client:create_chat_completion(messages, opts, chunk_callback)`
 
@@ -285,6 +286,34 @@ Cancels an in-progress streaming response.
 
 Returns HTTP status, response object, and output headers.
 
+##### Conversations
+
+The [Conversations API](https://platform.openai.com/docs/api-reference/conversations)
+stores conversation state server-side for use with the Responses API. Create a
+conversation, then pass its ID as the `conversation` parameter to
+`create_response` or `new_responses_chat_session`:
+
+```lua
+local status, conversation = client:create_conversation()
+
+local session = client:new_responses_chat_session({
+  conversation = conversation.id
+})
+
+print(session:send("Hello!"))
+```
+
+All of the following return HTTP status, response object, and output headers:
+
+- `client:create_conversation(opts)`: Creates a conversation. `opts` may include `items` (initial items) and `metadata`.
+- `client:conversation(conversation_id)`: Retrieves a conversation.
+- `client:update_conversation(conversation_id, opts)`: Updates a conversation, eg. `{metadata = {...}}`.
+- `client:delete_conversation(conversation_id)`: Deletes a conversation.
+- `client:conversation_items(conversation_id, params)`: Lists items in a conversation. `params` is an optional table of query parameters (eg. `{limit = 10, order = "asc", after = "item_id"}`).
+- `client:add_conversation_items(conversation_id, items)`: Appends an array of items to a conversation.
+- `client:conversation_item(conversation_id, item_id)`: Retrieves a single item.
+- `client:delete_conversation_item(conversation_id, item_id)`: Removes an item from a conversation.
+
 ##### `client:moderation(input, opts)`
 
 Sends a request to the `/moderations` endpoint to check content against OpenAI's content policy.
@@ -350,6 +379,13 @@ Constructor for the ResponsesChatSession.
   - `instructions`: System instructions for the conversation
   - `tools`: Array of tool definitions
   - `previous_response_id`: Resume from a previous response
+  - `conversation`: A conversation ID to store state server-side, see [Conversations](#conversations)
+
+When `conversation` is set, the session sends it with every request instead of
+chaining responses with `previous_response_id` — the API rejects requests that
+set both. Input and output items are automatically persisted to the
+conversation server-side, so the conversation can be resumed later (even across
+processes) by creating a new session with the same conversation ID.
 
 ##### `session:send(input, opts={})`
 

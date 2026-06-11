@@ -163,7 +163,6 @@ do
       end
       local stream_callback = opts.stream_callback
       local request_opts = {
-        previous_response_id = self.current_response_id,
         stream = stream_callback and true or nil
       }
       for k, v in pairs(opts) do
@@ -184,7 +183,7 @@ do
       assert(input_format(input))
       local merged_opts = {
         model = self.opts.model,
-        previous_response_id = self.current_response_id
+        conversation = self.conversation
       }
       if self.opts.instructions then
         merged_opts.instructions = self.opts.instructions
@@ -196,6 +195,9 @@ do
         for k, v in pairs(opts) do
           merged_opts[k] = v
         end
+      end
+      if not (merged_opts.conversation or merged_opts.previous_response_id) then
+        merged_opts.previous_response_id = self.current_response_id
       end
       if stream_callback then
         merged_opts.stream = merged_opts.stream or true
@@ -254,6 +256,7 @@ do
       self.client, self.opts = client, opts
       self.response_history = { }
       self.current_response_id = self.opts.previous_response_id
+      self.conversation = self.opts.conversation
     end,
     __base = _base_0,
     __name = "ResponsesChatSession"
