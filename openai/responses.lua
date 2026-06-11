@@ -135,7 +135,10 @@ local function_call_item = types.partial({
   call_id = types.string,
   status = empty + types.string
 })
-local output_item = response_message + function_call_item
+local other_output_item = types.partial({
+  type = types.string
+})
+local output_item = response_message + function_call_item + other_output_item
 local parse_responses_response = types.partial({
   id = types.string:tag("id"),
   object = empty + types.literal("response"):tag("object"),

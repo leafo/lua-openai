@@ -109,7 +109,14 @@ function_call_item = types.partial {
   status: empty + types.string
 }
 
-output_item = response_message + function_call_item
+-- any other output item type, eg. reasoning, web_search_call,
+-- image_generation_call, etc. -- kept open so new item types from the API
+-- don't fail validation of the entire response
+other_output_item = types.partial {
+  type: types.string
+}
+
+output_item = response_message + function_call_item + other_output_item
 
 -- Schema for validating complete response structure
 parse_responses_response = types.partial {

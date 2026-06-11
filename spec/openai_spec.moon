@@ -829,6 +829,44 @@ describe "OpenAI API Client", ->
       response = assert session\send "Use the tool", { tool_choice: "required" }
       assert.same "Tool response", response\get_output_text!
 
+    it "parses response containing reasoning & built-in tool output items", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        200, {
+          id: "resp_reasoning"
+          object: "response"
+          model: "gpt-5.4-mini"
+          output: {
+            {
+              id: "rs_123"
+              type: "reasoning"
+              summary: {}
+            }
+            {
+              id: "ws_123"
+              type: "web_search_call"
+              status: "completed"
+            }
+            {
+              id: "msg_123"
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "Reasoned reply" }
+              }
+            }
+          }
+          usage: {}
+          status: "completed"
+        }
+
+      session = client\new_responses_chat_session!
+      response = assert session\send "Think hard"
+      assert.same "Reasoned reply", response\get_output_text!
+      assert.same 3, #response.output
+      assert.same "reasoning", response.output[1].type
+
     it "send with function arg for backward compat", ->
       client = OpenAI "test-api-key"
 
