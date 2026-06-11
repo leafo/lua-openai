@@ -31,6 +31,7 @@ build = {
     ["openai.compat.mistral"] = "openai/compat/mistral.lua",
     ["openai.compat.moonshot"] = "openai/compat/moonshot.lua",
     ["openai.compat.openrouter"] = "openai/compat/openrouter.lua",
+    ["openai.multipart"] = "openai/multipart.lua",
     ["openai.responses"] = "openai/responses.lua",
     ["openai.sse"] = "openai/sse.lua",
   }

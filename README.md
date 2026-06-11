@@ -171,7 +171,7 @@ The `openai` module returns a table with the following fields:
 
 - `OpenAI`: A class function to create a new OpenAI client instance
 - `new`: An alias to `OpenAI` to create a new instance of the OpenAI client
-- `VERSION = "1.7.0"`: The current version of the library
+- `VERSION = "1.8.0"`: The current version of the library
 
 ### Classes
 
