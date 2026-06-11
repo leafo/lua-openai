@@ -5,6 +5,6 @@ import OpenAI from require "openai"
 
 class OpenRouter extends OpenAI
   api_base: "https://openrouter.ai/api/v1"
-  default_model: "openai/gpt-4.1"
+  default_model: "openai/gpt-5.4"
 
 {:OpenRouter, new: OpenRouter}

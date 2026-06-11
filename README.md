@@ -39,7 +39,7 @@ local status, response = client:create_response({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-4.1",
+  model = "gpt-5.4",
   temperature = 0.5
 })
 
@@ -59,7 +59,7 @@ local status, response = client:create_chat_completion({
   {role = "system", content = "You are a Lua programmer"},
   {role = "user", content = "Write a 'Hello world' program in Lua"}
 }, {
-  model = "gpt-3.5-turbo",
+  model = "gpt-5.4-mini",
   temperature = 0.5
 })
 
@@ -427,7 +427,7 @@ Constructor for the ChatSession.
   - `tool_choice`: Controls which tool is called (`"auto"`, `"none"`, or a specific tool)
   - `parallel_tool_calls`: Whether the model can make multiple tool calls in a single response
   - `temperature`: temperature setting
-  - `model`: Which chat completion model to use, eg. `gpt-4.1`, `gpt-4o-mini`
+  - `model`: Which chat completion model to use, eg. `gpt-5.4`, `gpt-5.4-mini`
 
 ##### `chat:append_message(m, ...)`
 
@@ -582,7 +582,7 @@ local client = OpenRouter.new(os.getenv("OPENROUTER_API_KEY"))
 local status, response = client:create_chat_completion({
   {role = "user", content = "Hello, how are you?"}
 }, {
-  model = "anthropic/claude-sonnet-4" -- default model is openai/gpt-4.1
+  model = "anthropic/claude-sonnet-4" -- default model is openai/gpt-5.4
 })
 ```
 
@@ -622,7 +622,7 @@ local tools = {
 
 -- Create a chat session with tools
 local chat = client:new_chat_session({
-  model = "gpt-4.1",
+  model = "gpt-5.4",
   tools = tools,
   tool_choice = "auto"
 })

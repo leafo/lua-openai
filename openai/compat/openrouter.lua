@@ -6,7 +6,7 @@ do
   local _parent_0 = OpenAI
   local _base_0 = {
     api_base = "https://openrouter.ai/api/v1",
-    default_model = "openai/gpt-4.1"
+    default_model = "openai/gpt-5.4"
   }
   _base_0.__index = _base_0
   setmetatable(_base_0, _parent_0.__base)

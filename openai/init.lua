@@ -10,7 +10,7 @@ do
   local _class_0
   local _base_0 = {
     api_base = "https://api.openai.com/v1",
-    default_model = "gpt-4.1",
+    default_model = "gpt-5.4",
     new_chat_session = function(self, ...)
       return self:new_chat_completions_session(...)
     end,
@@ -72,7 +72,7 @@ do
     end,
     completion = function(self, prompt, opts)
       local payload = {
-        model = "text-davinci-003",
+        model = "gpt-3.5-turbo-instruct",
         prompt = prompt,
         temperature = 0.5,
         max_tokens = 600
@@ -87,7 +87,7 @@ do
     embedding = function(self, input, opts)
       assert(input, "input must be provided")
       local payload = {
-        model = "text-embedding-ada-002",
+        model = "text-embedding-3-small",
         input = input
       }
       if opts then
