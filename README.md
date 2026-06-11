@@ -403,7 +403,7 @@ created with `new_chat_session`
 The field `messages` stores an array of chat messages representing the chat
 history. Each message object must conform to the following structure:
 
-- `role`: A string representing the role of the message sender. It must be one of the following values: `"system"`, `"user"`, `"assistant"`, `"function"` (legacy), or `"tool"` (for tool call results).
+- `role`: A string representing the role of the message sender. It must be one of the following values: `"system"`, `"developer"` (replacement for `system` on newer models), `"user"`, `"assistant"`, `"function"` (legacy), or `"tool"` (for tool call results).
 - `content`: A string containing the content of the message.
 - `name`: An optional string representing the name of the message sender. If not provided, it should be `nil`.
 

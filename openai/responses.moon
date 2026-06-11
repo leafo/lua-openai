@@ -63,7 +63,7 @@ function_call_output_item = types.partial {
 
 -- Schema for input messages with a role
 input_message = types.partial {
-  role: types.one_of {"system", "user", "assistant"}
+  role: types.one_of {"system", "developer", "user", "assistant"}
   content: types.string + types.array_of(input_content_item)
 }
 

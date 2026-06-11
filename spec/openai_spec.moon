@@ -170,6 +170,23 @@ describe "OpenAI API Client", ->
       assert.same {}, raw.usage
       assert.same raw, chat.last_response
 
+    it "accepts developer role messages", ->
+      client = OpenAI "test-api-key"
+
+      chat = client\new_chat_session {
+        messages: {
+          {role: "developer", content: "You are terse"}
+        }
+      }
+
+      assert.same {
+        {role: "developer", content: "You are terse"}
+      }, chat.messages
+
+      -- invalid roles are still rejected
+      assert.has_error ->
+        chat\append_message {role: "manager", content: "hello"}
+
     it "handles error responses", ->
       client = OpenAI "test-api-key"
       chat = client\new_chat_session { model: "gpt-4" }
@@ -828,6 +845,34 @@ describe "OpenAI API Client", ->
       session = client\new_responses_chat_session { model: "gpt-4.1-mini" }
       response = assert session\send "Use the tool", { tool_choice: "required" }
       assert.same "Tool response", response\get_output_text!
+
+    it "accepts developer role input messages", ->
+      client = OpenAI "test-api-key"
+
+      stub(client, "_request").invokes (c, method, path, payload) ->
+        assert.same "developer", payload.input[1].role
+
+        200, {
+          id: "resp_dev"
+          object: "response"
+          output: {
+            {
+              type: "message"
+              role: "assistant"
+              content: {
+                { type: "output_text", text: "ok" }
+              }
+            }
+          }
+          status: "completed"
+        }
+
+      session = client\new_responses_chat_session!
+      response = assert session\send {
+        {role: "developer", content: "Be terse"}
+        {role: "user", content: "hi"}
+      }
+      assert.same "ok", response\get_output_text!
 
     it "parses response containing reasoning & built-in tool output items", ->
       client = OpenAI "test-api-key"

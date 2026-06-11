@@ -33,6 +33,7 @@ local test_message = types.one_of({
   types.partial({
     role = types.one_of({
       "system",
+      "developer",
       "user"
     }),
     content = empty + content_format,

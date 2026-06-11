@@ -32,7 +32,7 @@ tool_calls_list = types.array_of tool_call_shape
 
 test_message = types.one_of {
   types.partial {
-    role: types.one_of {"system", "user"}
+    role: types.one_of {"system", "developer", "user"}
     content: empty + content_format
     name: empty + types.string
   }

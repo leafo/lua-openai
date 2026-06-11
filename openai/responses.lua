@@ -94,6 +94,7 @@ local function_call_output_item = types.partial({
 local input_message = types.partial({
   role = types.one_of({
     "system",
+    "developer",
     "user",
     "assistant"
   }),
